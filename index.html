@@ -105,14 +105,18 @@
         .modal { background: var(--secondary-bg); width: 90%; max-width: 450px; border-radius: 20px; padding: 20px; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; }
         .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 1.2em; font-weight: bold; }
 
+        .comment-card { background: var(--input-bg); padding: 10px; border-radius: 12px; margin-bottom: 8px; font-size: 14px; position: relative; }
+        .comment-del { position: absolute; top: 5px; right: 5px; color: var(--danger-color); font-size: 12px; cursor: pointer; padding: 5px;}
+
         .msg-area { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; }
-        .msg-row { display: flex; width: 100%; align-items: flex-end; }
+        .msg-row { display: flex; width: 100%; align-items: flex-end; position: relative; }
         .msg-row.me { justify-content: flex-end; }
         .msg-row.other { justify-content: flex-start; }
-        .msg { max-width: 75%; padding: 10px 14px; border-radius: 16px; font-size: 15px; word-wrap: break-word; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 16px; font-size: 15px; word-wrap: break-word; position: relative; }
         .msg.me { background: var(--message-out); border-bottom-right-radius: 4px; }
         .msg.other { background: var(--message-in); border-bottom-left-radius: 4px; }
         .msg.system { background: #ffebee; color: #b71c1c; border: 1px solid #ffcdd2; align-self: center; text-align: center; width: 90%; }
+        .msg-del { font-size: 10px; color: #ff4444; cursor: pointer; margin-left: 5px; opacity: 0.7; align-self: center;}
 
         @media (max-width: 768px) {
             .sidebar { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; justify-content: space-around; border-top: 1px solid var(--border-color); padding: 0; z-index: 100; align-items: center; }
@@ -156,6 +160,7 @@
 <div id="create-post-modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-head">Новый пост <span onclick="ui.closeModals()" style="cursor:pointer">×</span></div>
+        <p id="group-post-hint" style="font-size:12px; color:gray; margin-top:-10px; margin-bottom:10px; display:none;">В группу...</p>
         <textarea id="post-text" rows="4" placeholder="Что нового?"></textarea>
         <div id="post-img-preview" class="hidden" style="position:relative; margin-bottom:10px;">
             <img id="preview-img-el" style="width:100%; border-radius:10px;">
@@ -216,7 +221,7 @@
 </div>
 
 <div id="app-screen">
-    <div class="fab" onclick="document.getElementById('create-post-modal').style.display='flex'">
+    <div class="fab" onclick="app.openCreatePost()">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </div>
 
@@ -252,7 +257,7 @@
             <span class="desk-label" style="color:red">Админка</span>
         </div>
         <div class="nav-item" onclick="ui.nav('settings')">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="desk-label">Меню</span>
         </div>
     </div>
@@ -268,6 +273,7 @@
                 <h2>Сообщества</h2>
                 <button class="action-btn" style="padding:5px 15px; font-size:12px;" onclick="document.getElementById('create-group-modal').style.display='flex'">+ Создать</button>
             </div>
+            <input placeholder="Поиск групп..." style="margin-bottom:10px;" oninput="app.searchGroup(this.value)">
             <div id="groups-list"></div>
         </div>
 
@@ -407,6 +413,7 @@ let captchaAns = 0;
 let lastPostTime = 0;
 let activeChatUnsub = null;
 let forbiddenWords = [];
+let activeGroupId = null; // New logic for group posts
 
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
@@ -428,6 +435,9 @@ window.ui = {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
         
+        // Reset group state unless we are navigating to a profile (which might be a group)
+        if(v !== 'profile') activeGroupId = null;
+
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         const el = document.getElementById('view-'+(v==='admin'?'admin':v));
@@ -489,7 +499,6 @@ window.app = {
                     
                     if(currentUser.isBanned) throw new Error('Banned');
                     
-                    // Load Config
                     const conf = await getDoc(doc(db, 'system', 'config'));
                     if(conf.exists()) forbiddenWords = conf.data().words || [];
 
@@ -553,18 +562,40 @@ window.app = {
         return true;
     },
 
+    openCreatePost: () => {
+        document.getElementById('group-post-hint').style.display = activeGroupId ? 'block' : 'none';
+        if(activeGroupId) document.getElementById('group-post-hint').innerText = "В группу: " + activeGroupId;
+        document.getElementById('create-post-modal').style.display='flex';
+    },
+
     createPost: async () => {
         if(currentUser.isMuted) return alert("Вы замьючены!");
         if(Date.now()-lastPostTime < 5000) return alert('Не спеши!');
         const txt = document.getElementById('post-text').value.trim();
         if(!app.checkContent(txt)) return;
         if(!txt && !tempImg) return;
-        const p = { author: currentUser.username, name: currentUser.name, content: txt, image: tempImg || null, likes: [], createdAt: Date.now(), verified: currentUser.isVerified || false, status: currentUser.status || '', avatar: currentUser.avatar || '' };
+        const p = { 
+            author: currentUser.username, 
+            name: currentUser.name, 
+            content: txt, 
+            image: tempImg || null, 
+            likes: [], 
+            createdAt: Date.now(), 
+            verified: currentUser.isVerified || false, 
+            status: currentUser.status || '', 
+            avatar: currentUser.avatar || ''
+        };
+        // Group Logic
+        if(activeGroupId) p.groupId = activeGroupId;
+
         await addDoc(collection(db, 'posts'), p);
         lastPostTime = Date.now();
         document.getElementById('post-text').value='';
         app.clearImg(); ui.closeModals();
-        app.checkAchievs();
+        
+        // Refresh feed if in group
+        if(activeGroupId) app.loadProfile(activeGroupId);
+        else app.checkAchievs();
     },
 
     repost: async (postId) => {
@@ -581,8 +612,9 @@ window.app = {
         const qTop = query(collection(db, 'posts'), where('createdAt', '>', yesterday), orderBy('createdAt', 'desc')); 
         const snaps = await getDocs(qTop);
         let topPost = null; let maxLikes = -1;
-        snaps.forEach(d => { const p = d.data(); p.id = d.id; if(p.likes && p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; } });
+        snaps.forEach(d => { const p = d.data(); p.id = d.id; if(!p.groupId && p.likes && p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; } });
         if(topPost && maxLikes > 0) c.innerHTML += app.renderPost(topPost, true);
+        
         if(listeners.feed) listeners.feed();
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
         listeners.feed = onSnapshot(q, s => {
@@ -590,6 +622,7 @@ window.app = {
             let html = topHtml;
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
+                if(p.groupId) return; // Don't show group posts in main feed
                 if(currentUser.blocked.includes(p.author)) return;
                 if(topPost && p.id === topPost.id) return;
                 html += app.renderPost(p);
@@ -623,6 +656,10 @@ window.app = {
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         c.innerHTML = 'Загрузка...';
+        
+        // Reset Active Group logic
+        activeGroupId = null;
+
         const s = await getDoc(doc(db, 'users', u));
         if(s.exists()) { 
             const user = s.data();
@@ -661,25 +698,46 @@ window.app = {
                 const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 pc.innerHTML = '';
-                ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
+                ps.forEach(d => {
+                    const p = d.data();
+                    if(!p.groupId) pc.innerHTML += app.renderPost({...p, id:d.id});
+                });
             }
         } else {
-            // Group Logic (Same as before)
+            // Group Logic
             const g = await getDoc(doc(db, 'groups', u));
             if(g.exists()) {
+                activeGroupId = u; // SET GROUP CONTEXT
                 const group = g.data();
                 const isMem = group.members.includes(currentUser.username);
                 const isOwner = group.owner === currentUser.username;
                 const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
                 c.innerHTML = `<div class="card" style="text-align:center"><div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
-                 const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
+                 
+                // Load Group Posts
+                const q = query(collection(db, 'posts'), where('groupId', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 const pc = document.getElementById('profile-posts');
                 pc.innerHTML = '';
-                if(isOwner) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="document.getElementById('create-post-modal').style.display='flex'">Написать в группу</button>`;
+                if(isMem) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="app.openCreatePost()">Написать в группу</button>`;
                 ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
             } else c.innerHTML = 'Не найдено';
         }
+    },
+
+    searchGroup: async (v) => {
+        if(!v) { app.loadGroups(); return; }
+        v = v.toLowerCase();
+        const c = document.getElementById('groups-list'); c.innerHTML='';
+        const q = query(collection(db, 'groups'), orderBy('name'), limit(20)); // Simple scan as firestore regex is hard
+        const s = await getDocs(q);
+        s.forEach(d => {
+            const g = d.data();
+            if(g.name.toLowerCase().includes(v)) {
+                const avHtml = g.avatar ? `<img src="${g.avatar}" class="avatar av-40">` : `<div class="avatar av-40" style="background:${varColor(g.name)}; display:flex; align-items:center; justify-content:center; color:white;">${g.name[0]}</div>`;
+                c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${g.id}')">${avHtml}<div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`;
+            }
+        });
     },
 
     blockUser: async (target, doBlock) => {
@@ -731,7 +789,7 @@ window.app = {
     },
     deleteGroup: async (gid) => { if(!confirm('Удалить группу?')) return; await deleteDoc(doc(db, 'groups', gid)); alert('Удалена'); ui.nav('groups'); },
     
-    // --- CHATS 2.0 ---
+    // --- CHATS ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='Обновление...';
         const friends = currentUser.following; 
@@ -790,7 +848,11 @@ window.app = {
                 const isSys = m.from === 'System';
                 let html = '';
                 if(isSys) html = `<div class="msg system">${m.text}</div>`;
-                else html = `<div class="msg-row ${isMe?'me':'other'}">${!isMe ? `<img src="${curChatAvatar||'https://via.placeholder.com/20'}" class="avatar av-20">` : ''}<div class="msg ${isMe?'me':'other'}">${m.text}</div></div>`;
+                else {
+                    // Chat delete
+                    const delBtn = isMe ? `<span class="msg-del" onclick="app.delMsg('${d.id}','${chatId}')">×</span>` : '';
+                    html = `<div class="msg-row ${isMe?'me':'other'}">${!isMe ? `<img src="${curChatAvatar||'https://via.placeholder.com/20'}" class="avatar av-20">` : ''}<div class="msg ${isMe?'me':'other'}">${m.text}</div>${delBtn}</div>`;
+                }
                 c.innerHTML += html;
             });
             c.scrollTop = c.scrollHeight;
@@ -802,12 +864,15 @@ window.app = {
         if(currentUser.isMuted) return alert("Мут!");
         if(currentUser.blocked.includes(curChat)) return alert("Разблокируйте сначала");
         if(!app.checkContent(txt)) return;
-        const p = await getDoc(doc(db, 'users', curChat));
-        if(p.exists() && p.data().blocked.includes(currentUser.username)) return alert("Вы заблокированы пользователем");
+        
         const chatId = [currentUser.username, curChat].sort().join('_');
         await addDoc(collection(db, 'chats', chatId, 'messages'), { from: currentUser.username, text: txt, time: Date.now() });
         await setDoc(doc(db, 'chats', chatId), { lastMessage: txt, lastTime: Date.now() }, { merge: true });
         document.getElementById('msg-input').value = '';
+    },
+    delMsg: async (id, chatId) => {
+        if(!confirm('Удалить?')) return;
+        await deleteDoc(doc(db, 'chats', chatId, 'messages', id));
     },
     navToChatProfile: () => { ui.nav('profile', curChat); },
 
@@ -830,9 +895,18 @@ window.app = {
     openComs: (pid, auth) => {
         curPost = pid; document.getElementById('comments-modal').style.display='flex'; const list = document.getElementById('comments-list');
         const q = query(collection(db, 'posts', pid, 'comments'), orderBy('time', 'asc'));
-        onSnapshot(q, s => { list.innerHTML=''; s.forEach(d => { const c = d.data(); list.innerHTML += `<div style="background:#f0f0f0; padding:10px; border-radius:10px; margin-bottom:5px;"><b>${c.author}</b>: ${c.text}</div>`; }); });
+        onSnapshot(q, s => { 
+            list.innerHTML=''; 
+            s.forEach(d => { 
+                const c = d.data(); 
+                const isMine = c.author === currentUser.username || currentUser.isAdmin || auth === currentUser.username;
+                const del = isMine ? `<span class="comment-del" onclick="app.delComment('${d.id}')">×</span>` : '';
+                list.innerHTML += `<div class="comment-card"><b>${c.author}</b><br>${c.text}${del}</div>`; 
+            }); 
+        });
     },
     sendComment: async () => { if(currentUser.isMuted) return alert("Мут!"); const t = document.getElementById('comment-input').value; if(!t) return; if(!app.checkContent(t)) return; await addDoc(collection(db, 'posts', curPost, 'comments'), { author: currentUser.username, text: t, time: Date.now() }); document.getElementById('comment-input').value=''; },
+    delComment: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',curPost,'comments',id)); },
     delPost: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',id)); },
 
     // --- Misc ---
