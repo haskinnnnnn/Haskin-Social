@@ -105,9 +105,10 @@
         .modal { background: var(--secondary-bg); width: 90%; max-width: 450px; border-radius: 20px; padding: 20px; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; }
         .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 1.2em; font-weight: bold; }
 
-        .comment-card { background: var(--input-bg); padding: 10px; border-radius: 12px; margin-bottom: 8px; font-size: 14px; position: relative; }
+        .comment-card { background: var(--input-bg); padding: 10px; border-radius: 12px; margin-bottom: 8px; font-size: 14px; position: relative; color: var(--text-color); }
         .comment-del { position: absolute; top: 5px; right: 5px; color: var(--danger-color); font-size: 12px; cursor: pointer; padding: 5px;}
 
+        /* Chat & Media */
         .msg-area { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; }
         .msg-row { display: flex; width: 100%; align-items: flex-end; position: relative; }
         .msg-row.me { justify-content: flex-end; }
@@ -117,6 +118,13 @@
         .msg.other { background: var(--message-in); border-bottom-left-radius: 4px; }
         .msg.system { background: #ffebee; color: #b71c1c; border: 1px solid #ffcdd2; align-self: center; text-align: center; width: 90%; }
         .msg-del { font-size: 10px; color: #ff4444; cursor: pointer; margin-left: 5px; opacity: 0.7; align-self: center;}
+        
+        .chat-img { max-width: 200px; border-radius: 12px; display: block; margin-bottom: 5px; }
+        audio { height: 30px; max-width: 200px; margin: 5px 0; }
+        
+        .chat-input-bar { padding:10px; background:var(--secondary-bg); display:flex; gap:10px; align-items:center; border-top:1px solid var(--border-color); }
+        .rec-active { background-color: #ff4444 !important; animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         @media (max-width: 768px) {
             .sidebar { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; justify-content: space-around; border-top: 1px solid var(--border-color); padding: 0; z-index: 100; align-items: center; }
@@ -135,10 +143,7 @@
     <div class="auth-box" id="login-box">
         <h1 style="color:var(--primary-color)">Вход</h1>
         <input type="text" id="login-user" placeholder="Юзернейм">
-        <div class="password-wrapper">
-            <input type="password" id="login-pass" placeholder="Пароль">
-            <span class="toggle-pass" onclick="ui.togglePass('login-pass')">👁️</span>
-        </div>
+        <div class="password-wrapper"><input type="password" id="login-pass" placeholder="Пароль"><span class="toggle-pass" onclick="ui.togglePass('login-pass')">👁️</span></div>
         <button class="action-btn" style="width:100%; margin-top:10px" onclick="app.login()">Войти</button>
         <p style="cursor:pointer; color:gray" onclick="ui.toggleAuth('reg')">Нет аккаунта?</p>
     </div>
@@ -257,7 +262,7 @@
             <span class="desk-label" style="color:red">Админка</span>
         </div>
         <div class="nav-item" onclick="ui.nav('settings')">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="desk-label">Меню</span>
         </div>
     </div>
@@ -305,8 +310,10 @@
                 </div>
             </div>
             <div id="msg-container" class="msg-area"></div>
-            <div style="padding:10px; background:var(--secondary-bg); display:flex; gap:10px;">
-                <input id="msg-input" placeholder="Сообщение...">
+            <div class="chat-input-bar">
+                <label style="cursor:pointer; font-size:20px;">📎<input type="file" hidden accept="image/*" onchange="app.handleChatImg(this)"></label>
+                <button id="mic-btn" style="border:none; background:none; font-size:20px; cursor:pointer;" onclick="app.toggleRecord()">🎙️</button>
+                <input id="msg-input" placeholder="Сообщение..." autocomplete="off">
                 <button class="action-btn" onclick="app.sendMsg()">➤</button>
             </div>
         </div>
@@ -405,6 +412,7 @@ const ICONS = {
 let currentUser = null;
 let listeners = {};
 let tempImg = null;
+let tempChatImg = null;
 let tempAv = null;
 let curChat = null;
 let curChatAvatar = '';
@@ -413,7 +421,11 @@ let captchaAns = 0;
 let lastPostTime = 0;
 let activeChatUnsub = null;
 let forbiddenWords = [];
-let activeGroupId = null; // New logic for group posts
+let activeGroupId = null;
+// Media
+let mediaRec = null;
+let audioChunks = [];
+let recTimer = null;
 
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
@@ -435,7 +447,6 @@ window.ui = {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
         
-        // Reset group state unless we are navigating to a profile (which might be a group)
         if(v !== 'profile') activeGroupId = null;
 
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
@@ -585,7 +596,6 @@ window.app = {
             status: currentUser.status || '', 
             avatar: currentUser.avatar || ''
         };
-        // Group Logic
         if(activeGroupId) p.groupId = activeGroupId;
 
         await addDoc(collection(db, 'posts'), p);
@@ -593,7 +603,6 @@ window.app = {
         document.getElementById('post-text').value='';
         app.clearImg(); ui.closeModals();
         
-        // Refresh feed if in group
         if(activeGroupId) app.loadProfile(activeGroupId);
         else app.checkAchievs();
     },
@@ -622,7 +631,7 @@ window.app = {
             let html = topHtml;
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
-                if(p.groupId) return; // Don't show group posts in main feed
+                if(p.groupId) return;
                 if(currentUser.blocked.includes(p.author)) return;
                 if(topPost && p.id === topPost.id) return;
                 html += app.renderPost(p);
@@ -656,8 +665,6 @@ window.app = {
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         c.innerHTML = 'Загрузка...';
-        
-        // Reset Active Group logic
         activeGroupId = null;
 
         const s = await getDoc(doc(db, 'users', u));
@@ -714,7 +721,7 @@ window.app = {
                 const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
                 c.innerHTML = `<div class="card" style="text-align:center"><div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
                  
-                // Load Group Posts
+                // Load Group Posts Specifically
                 const q = query(collection(db, 'posts'), where('groupId', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 const pc = document.getElementById('profile-posts');
@@ -729,7 +736,7 @@ window.app = {
         if(!v) { app.loadGroups(); return; }
         v = v.toLowerCase();
         const c = document.getElementById('groups-list'); c.innerHTML='';
-        const q = query(collection(db, 'groups'), orderBy('name'), limit(20)); // Simple scan as firestore regex is hard
+        const q = query(collection(db, 'groups'), orderBy('name'), limit(20)); 
         const s = await getDocs(q);
         s.forEach(d => {
             const g = d.data();
@@ -847,28 +854,77 @@ window.app = {
                 const isMe = m.from === currentUser.username;
                 const isSys = m.from === 'System';
                 let html = '';
-                if(isSys) html = `<div class="msg system">${m.text}</div>`;
+                
+                let content = m.text;
+                if(m.image) content = `<img src="${m.image}" class="chat-img" onclick="window.open('${m.image}')">`;
+                if(m.audio) content = `<audio controls src="${m.audio}"></audio>`;
+
+                if(isSys) html = `<div class="msg system">${content}</div>`;
                 else {
-                    // Chat delete
                     const delBtn = isMe ? `<span class="msg-del" onclick="app.delMsg('${d.id}','${chatId}')">×</span>` : '';
-                    html = `<div class="msg-row ${isMe?'me':'other'}">${!isMe ? `<img src="${curChatAvatar||'https://via.placeholder.com/20'}" class="avatar av-20">` : ''}<div class="msg ${isMe?'me':'other'}">${m.text}</div>${delBtn}</div>`;
+                    html = `<div class="msg-row ${isMe?'me':'other'}">${!isMe ? `<img src="${curChatAvatar||'https://via.placeholder.com/20'}" class="avatar av-20">` : ''}<div class="msg ${isMe?'me':'other'}">${content}</div>${delBtn}</div>`;
                 }
                 c.innerHTML += html;
             });
             c.scrollTop = c.scrollHeight;
         });
     },
+    
+    // --- CHAT MEDIA ---
+    handleChatImg: el => { if(el.files[0]) compress(el.files[0], d => { tempChatImg = d; app.sendMsg(); }); },
+    toggleRecord: async () => {
+        if(mediaRec && mediaRec.state === 'recording') {
+            mediaRec.stop();
+            document.getElementById('mic-btn').classList.remove('rec-active');
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRec = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRec.ondataavailable = e => audioChunks.push(e.data);
+                mediaRec.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result;
+                        app.sendAudio(base64data);
+                    }
+                    stream.getTracks().forEach(track => track.stop()); // Close mic
+                };
+                mediaRec.start();
+                document.getElementById('mic-btn').classList.add('rec-active');
+                
+                // Auto stop after 15s
+                setTimeout(() => { if(mediaRec && mediaRec.state==='recording') app.toggleRecord(); }, 15000);
+            } catch(e) { alert('Нет доступа к микрофону'); }
+        }
+    },
+    sendAudio: async (data) => {
+        const chatId = [currentUser.username, curChat].sort().join('_');
+        await addDoc(collection(db, 'chats', chatId, 'messages'), { from: currentUser.username, audio: data, text: '🎤 Голосовое', time: Date.now() });
+        await setDoc(doc(db, 'chats', chatId), { lastMessage: '🎤 Голосовое', lastTime: Date.now() }, { merge: true });
+    },
+
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value.trim();
-        if(!txt || !curChat) return;
+        // Allow sending if text OR image exists
+        if(!txt && !tempChatImg) return;
+        
         if(currentUser.isMuted) return alert("Мут!");
         if(currentUser.blocked.includes(curChat)) return alert("Разблокируйте сначала");
-        if(!app.checkContent(txt)) return;
+        if(txt && !app.checkContent(txt)) return;
         
         const chatId = [currentUser.username, curChat].sort().join('_');
-        await addDoc(collection(db, 'chats', chatId, 'messages'), { from: currentUser.username, text: txt, time: Date.now() });
-        await setDoc(doc(db, 'chats', chatId), { lastMessage: txt, lastTime: Date.now() }, { merge: true });
+        const msgData = { from: currentUser.username, time: Date.now() };
+        if(txt) msgData.text = txt;
+        if(tempChatImg) { msgData.image = tempChatImg; msgData.text = '📷 Фото'; }
+
+        await addDoc(collection(db, 'chats', chatId, 'messages'), msgData);
+        await setDoc(doc(db, 'chats', chatId), { lastMessage: msgData.text, lastTime: Date.now() }, { merge: true });
+        
         document.getElementById('msg-input').value = '';
+        tempChatImg = null;
     },
     delMsg: async (id, chatId) => {
         if(!confirm('Удалить?')) return;
