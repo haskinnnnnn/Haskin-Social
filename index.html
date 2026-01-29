@@ -262,7 +262,7 @@
             <span class="desk-label" style="color:red">Админка</span>
         </div>
         <div class="nav-item" onclick="ui.nav('settings')">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="desk-label">Меню</span>
         </div>
     </div>
@@ -378,6 +378,7 @@
                 <button class="tab" onclick="admin.tab('verify')">Заявки</button>
                 <button class="tab" onclick="admin.tab('words')">Фильтр</button>
             </div>
+            <div id="adm-stats" style="background:#f0f0f0; padding:10px; border-radius:10px; margin:10px 0; text-align:center;">Загрузка статистики...</div>
             <div id="adm-content"></div>
         </div>
     </div>
@@ -422,10 +423,8 @@ let lastPostTime = 0;
 let activeChatUnsub = null;
 let forbiddenWords = [];
 let activeGroupId = null;
-// Media
 let mediaRec = null;
 let audioChunks = [];
-let recTimer = null;
 
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
@@ -440,7 +439,11 @@ const compress = (file, cb) => {
         }
     }
 };
-const getAv = (u, sz) => `<img src="${u.avatar||'https://via.placeholder.com/80'}" class="avatar ${sz}">`;
+// FIX: "Smart" avatar renderer to handle legacy data
+const getAv = (u, sz) => {
+    const src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
+    return `<img src="${src}" class="avatar ${sz}">`;
+};
 
 window.ui = {
     nav: (v, p) => {
@@ -465,7 +468,7 @@ window.ui = {
         if(v==='notifs') app.listenNotifs();
         if(v==='profile') app.loadProfile(p);
         if(v==='chat-room') app.loadChatRoom(p);
-        if(v==='admin') admin.tab('users');
+        if(v==='admin') { admin.tab('users'); admin.stats(); }
         if(v==='settings' && currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
     },
     toggleAuth: m => {
@@ -640,15 +643,21 @@ window.app = {
         });
     },
 
+    // FIX: Render legacy posts
     renderPost: (p, isTop=false) => {
         const likes = p.likes || [];
         const isLiked = likes.includes(currentUser.username);
         const isMine = p.author === currentUser.username;
+        const name = p.name || p.authorName || p.author; // FALLBACK
+        const verified = p.verified ? ICONS.verify : '';
+        const status = p.status ? `<span class="status-pill">${p.status}</span>` : '';
+        const avatarUrl = p.avatar || p.authorAvatar || 'https://via.placeholder.com/80'; // FALLBACK
+
         return `<div class="card ${isTop?'top-post-banner':''}">
             ${isTop ? '<div class="top-label">👑 ТОП ДНЯ</div>' : ''}
             <div class="post-header" onclick="ui.nav('profile','${p.author}')">
-                ${getAv(p, 'av-40')}
-                <div><div style="font-weight:bold; display:flex; align-items:center;">${p.name} ${p.verified?ICONS.verify:''} ${p.status?`<span class="status-pill">${p.status}</span>`:''}</div>
+                <img src="${avatarUrl}" class="avatar av-40">
+                <div><div style="font-weight:bold; display:flex; align-items:center;">${name} ${verified} ${status}</div>
                 <div style="font-size:12px; color:gray">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div></div>
             </div>
             <div style="white-space:pre-wrap">${p.content}</div>
@@ -721,13 +730,18 @@ window.app = {
                 const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
                 c.innerHTML = `<div class="card" style="text-align:center"><div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
                  
-                // Load Group Posts Specifically
-                const q = query(collection(db, 'posts'), where('groupId', '==', u), orderBy('createdAt', 'desc'));
-                const ps = await getDocs(q);
-                const pc = document.getElementById('profile-posts');
-                pc.innerHTML = '';
-                if(isMem) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="app.openCreatePost()">Написать в группу</button>`;
-                ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
+                // FIX: Catch Index Error
+                try {
+                    const q = query(collection(db, 'posts'), where('groupId', '==', u), orderBy('createdAt', 'desc'));
+                    const ps = await getDocs(q);
+                    const pc = document.getElementById('profile-posts');
+                    pc.innerHTML = '';
+                    if(isMem) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="app.openCreatePost()">Написать в группу</button>`;
+                    ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
+                } catch(e) {
+                    console.log(e);
+                    document.getElementById('profile-posts').innerHTML = `<p style="color:red">Ошибка: Требуется индекс. Админу нужно создать индекс в Firebase для (groupId + createdAt).</p>`;
+                }
             } else c.innerHTML = 'Не найдено';
         }
     },
@@ -908,7 +922,6 @@ window.app = {
 
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value.trim();
-        // Allow sending if text OR image exists
         if(!txt && !tempChatImg) return;
         
         if(currentUser.isMuted) return alert("Мут!");
@@ -988,6 +1001,28 @@ window.admin = {
         if(t==='users') { b[0].classList.add('active'); c.innerHTML = '<input oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>'; }
         if(t==='verify') { b[1].classList.add('active'); admin.loadV(); }
         if(t==='words') { b[2].classList.add('active'); admin.loadW(); }
+    },
+    // NEW: Stats & Broadcast
+    stats: async () => {
+        const u = await getDocs(collection(db, 'users'));
+        document.getElementById('adm-stats').innerHTML = `
+            Всего пользователей: <b>${u.size}</b><br>
+            <button class="action-btn" style="margin-top:5px;" onclick="admin.broadcast()">📢 Рассылка всем</button>
+        `;
+    },
+    broadcast: async () => {
+        const txt = prompt("Сообщение для всех:");
+        if(!txt) return;
+        if(!confirm("Отправить всем пользователям? Это может занять время.")) return;
+        const users = await getDocs(collection(db, 'users'));
+        let count = 0;
+        users.forEach(u => {
+            addDoc(collection(db, 'users', u.id, 'notifications'), {
+                type: 'system', text: txt, time: Date.now(), read: false, from: 'System'
+            });
+            count++;
+        });
+        alert(`Отправлено ${count} пользователям.`);
     },
     s: async v => {
         const s = await getDocs(query(collection(db,'users'), where('username','>=',v), limit(5)));
