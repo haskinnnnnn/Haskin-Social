@@ -262,7 +262,7 @@
             <span class="desk-label" style="color:red">Админка</span>
         </div>
         <div class="nav-item" onclick="ui.nav('settings')">
-            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="desk-label">Меню</span>
         </div>
     </div>
@@ -378,7 +378,7 @@
                 <button class="tab" onclick="admin.tab('verify')">Заявки</button>
                 <button class="tab" onclick="admin.tab('words')">Фильтр</button>
             </div>
-            <div id="adm-stats" style="background:#f0f0f0; padding:10px; border-radius:10px; margin:10px 0; text-align:center;">Загрузка статистики...</div>
+            <div id="adm-stats" style="background:var(--input-bg); padding:10px; border-radius:10px; margin:10px 0; text-align:center;">Загрузка...</div>
             <div id="adm-content"></div>
         </div>
     </div>
@@ -439,9 +439,12 @@ const compress = (file, cb) => {
         }
     }
 };
-// FIX: "Smart" avatar renderer to handle legacy data
+
+// FIX: Improved Avatar Resolver
 const getAv = (u, sz) => {
-    const src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
+    let src = 'https://via.placeholder.com/80';
+    if(u.avatar) src = u.avatar;
+    else if(u.authorAvatar) src = u.authorAvatar;
     return `<img src="${src}" class="avatar ${sz}">`;
 };
 
@@ -449,7 +452,6 @@ window.ui = {
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
-        
         if(v !== 'profile') activeGroupId = null;
 
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
@@ -643,15 +645,16 @@ window.app = {
         });
     },
 
-    // FIX: Render legacy posts
+    // RENDER POST (Handles legacy fields)
     renderPost: (p, isTop=false) => {
         const likes = p.likes || [];
         const isLiked = likes.includes(currentUser.username);
         const isMine = p.author === currentUser.username;
-        const name = p.name || p.authorName || p.author; // FALLBACK
+        // Legacy Fallbacks
+        const name = p.name || p.authorName || p.author;
         const verified = p.verified ? ICONS.verify : '';
         const status = p.status ? `<span class="status-pill">${p.status}</span>` : '';
-        const avatarUrl = p.avatar || p.authorAvatar || 'https://via.placeholder.com/80'; // FALLBACK
+        const avatarUrl = p.avatar || p.authorAvatar || 'https://via.placeholder.com/80';
 
         return `<div class="card ${isTop?'top-post-banner':''}">
             ${isTop ? '<div class="top-label">👑 ТОП ДНЯ</div>' : ''}
@@ -671,13 +674,17 @@ window.app = {
         </div>`;
     },
 
+    // --- MEGA FIX: LOAD PROFILE/GROUP ---
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
+        const pc = document.getElementById('profile-posts');
         c.innerHTML = 'Загрузка...';
+        pc.innerHTML = 'Загрузка постов...';
         activeGroupId = null;
 
         const s = await getDoc(doc(db, 'users', u));
         if(s.exists()) { 
+            // ----- USER PROFILE LOGIC -----
             const user = s.data();
             const isMe = u === currentUser.username;
             const isFollow = currentUser.following.includes(u);
@@ -707,41 +714,44 @@ window.app = {
                     <b>${user.following.length} <span style="font-weight:normal; color:gray">подписки</span></b>
                 </div>${btn}</div>`;
 
-            const pc = document.getElementById('profile-posts');
             if(isClosed || isBlocked) {
                 pc.innerHTML = `<div style="text-align:center; padding:20px; color:gray">${ICONS.lock}<br>Доступ ограничен</div>`;
             } else {
-                const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
+                // Client-side sort to fix Index Error
+                const q = query(collection(db, 'posts'), where('author', '==', u));
                 const ps = await getDocs(q);
+                let postsArr = [];
+                ps.forEach(d => postsArr.push({...d.data(), id:d.id}));
+                postsArr.sort((a,b) => b.createdAt - a.createdAt); // Sort locally
+                
                 pc.innerHTML = '';
-                ps.forEach(d => {
-                    const p = d.data();
-                    if(!p.groupId) pc.innerHTML += app.renderPost({...p, id:d.id});
-                });
+                postsArr.forEach(p => { if(!p.groupId) pc.innerHTML += app.renderPost(p); });
+                if(postsArr.length === 0) pc.innerHTML = '<p style="text-align:center">Нет постов</p>';
             }
         } else {
-            // Group Logic
+            // ----- GROUP LOGIC -----
             const g = await getDoc(doc(db, 'groups', u));
             if(g.exists()) {
-                activeGroupId = u; // SET GROUP CONTEXT
+                activeGroupId = u; 
                 const group = g.data();
                 const isMem = group.members.includes(currentUser.username);
                 const isOwner = group.owner === currentUser.username;
                 const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
+                
                 c.innerHTML = `<div class="card" style="text-align:center"><div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
                  
-                // FIX: Catch Index Error
-                try {
-                    const q = query(collection(db, 'posts'), where('groupId', '==', u), orderBy('createdAt', 'desc'));
-                    const ps = await getDocs(q);
-                    const pc = document.getElementById('profile-posts');
-                    pc.innerHTML = '';
-                    if(isMem) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="app.openCreatePost()">Написать в группу</button>`;
-                    ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
-                } catch(e) {
-                    console.log(e);
-                    document.getElementById('profile-posts').innerHTML = `<p style="color:red">Ошибка: Требуется индекс. Админу нужно создать индекс в Firebase для (groupId + createdAt).</p>`;
-                }
+                // Safe Fetch for Groups (No orderBy in query)
+                const q = query(collection(db, 'posts'), where('groupId', '==', u));
+                const ps = await getDocs(q);
+                let postsArr = [];
+                ps.forEach(d => postsArr.push({...d.data(), id:d.id}));
+                postsArr.sort((a,b) => b.createdAt - a.createdAt); // Sort locally
+
+                pc.innerHTML = '';
+                if(isMem) pc.innerHTML = `<button class="action-btn" style="width:100%; margin-bottom:10px" onclick="app.openCreatePost()">Написать в группу</button>`;
+                postsArr.forEach(p => pc.innerHTML += app.renderPost(p));
+                if(postsArr.length === 0) pc.innerHTML += '<p style="text-align:center">Нет постов</p>';
+                
             } else c.innerHTML = 'Не найдено';
         }
     },
@@ -908,8 +918,6 @@ window.app = {
                 };
                 mediaRec.start();
                 document.getElementById('mic-btn').classList.add('rec-active');
-                
-                // Auto stop after 15s
                 setTimeout(() => { if(mediaRec && mediaRec.state==='recording') app.toggleRecord(); }, 15000);
             } catch(e) { alert('Нет доступа к микрофону'); }
         }
@@ -924,9 +932,7 @@ window.app = {
         const txt = document.getElementById('msg-input').value.trim();
         if(!txt && !tempChatImg) return;
         
-        if(currentUser.isMuted) return alert("Мут!");
         if(currentUser.blocked.includes(curChat)) return alert("Разблокируйте сначала");
-        if(txt && !app.checkContent(txt)) return;
         
         const chatId = [currentUser.username, curChat].sort().join('_');
         const msgData = { from: currentUser.username, time: Date.now() };
