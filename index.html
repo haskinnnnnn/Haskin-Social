@@ -23,6 +23,7 @@
             --status-bg: #eef3f8;
             --status-text: #3390ec;
             --top-post-bg: linear-gradient(135deg, #fff6b7 0%, #f6e6b4 100%);
+            --pinned-bg: #e3f2fd;
         }
 
         [data-theme="dark"] {
@@ -39,19 +40,14 @@
             --status-bg: #2b2b2b;
             --status-text: #aaaaaa;
             --top-post-bg: linear-gradient(135deg, #423806 0%, #2e2808 100%);
+            --pinned-bg: #19192b;
         }
 
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            margin: 0; background: var(--bg-color); color: var(--text-color); 
-            height: 100vh; height: 100dvh; 
-            display: flex; overflow: hidden; 
-        }
-        
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--bg-color); color: var(--text-color); height: 100dvh; display: flex; overflow: hidden; }
         .hidden { display: none !important; }
         .icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         
-        .action-btn { padding: 10px 20px; border-radius: 12px; border: none; background: var(--primary-color); color: white; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;}
+        .action-btn { padding: 8px 16px; border-radius: 10px; border: none; background: var(--primary-color); color: white; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 14px; }
         .btn-danger { background: var(--danger-color); }
         .btn-sec { background: var(--input-bg); color: var(--text-color); }
 
@@ -71,37 +67,24 @@
         .toggle-pass { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.6; }
 
         #app-screen { display: none; width: 100%; height: 100%; }
-        
-        .sidebar { 
-            width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); 
-            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; flex-shrink: 0;
-        }
-        
-        .main { 
-            flex: 1; background: var(--bg-color); position: relative; 
-            overflow: hidden; display: flex; flex-direction: column; 
-            height: 100%;
-        }
-        
-        .view { 
-            display: none; padding: 15px; 
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-            height: 100%; padding-bottom: 100px; box-sizing: border-box; 
-        }
+        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; flex-shrink: 0; }
+        .main { flex: 1; background: var(--bg-color); position: relative; overflow: hidden; display: flex; flex-direction: column; height: 100%; }
+        .view { display: none; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; height: 100%; padding-bottom: 100px; box-sizing: border-box; }
         .view.active { display: block; }
 
         .nav-item { padding: 12px; margin-bottom: 5px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; color: var(--text-color); gap: 15px; font-weight: 500; transition: 0.2s; }
         .nav-item:hover { background: rgba(0,0,0,0.05); }
         .nav-item.active { background: rgba(var(--primary-color), 0.1); color: var(--primary-color); font-weight: 700; }
-        .nav-item.active svg { stroke: var(--primary-color); }
         .badge { background: var(--notification-dot); width: 8px; height: 8px; border-radius: 50%; margin-left: auto; display: none;}
 
         .card { background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 15px; margin-bottom: 12px; }
         .avatar { border-radius: 50%; object-fit: cover; background: #eee; flex-shrink: 0; }
         .av-40 { width: 40px; height: 40px; }
         .av-80 { width: 80px; height: 80px; }
+        .av-20 { width: 24px; height: 24px; margin-right: 5px; } 
         .user-row { display: flex; align-items: center; gap: 10px; }
-        
+        .pinned-chat { background-color: var(--pinned-bg); border-left: 3px solid var(--primary-color); }
+
         .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; }
         .verified-badge { width: 16px; height: 16px; color: var(--verified-color); fill: currentColor; margin-left: 4px; vertical-align: text-bottom;}
         .status-pill { font-size: 11px; background: var(--status-bg); color: var(--status-text); padding: 2px 6px; border-radius: 6px; font-weight: bold; margin-left: 5px; }
@@ -123,15 +106,18 @@
         .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 1.2em; font-weight: bold; }
 
         .msg-area { flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:8px; }
+        .msg-row { display: flex; width: 100%; align-items: flex-end; }
+        .msg-row.me { justify-content: flex-end; }
+        .msg-row.other { justify-content: flex-start; }
         .msg { max-width: 75%; padding: 10px 14px; border-radius: 16px; font-size: 15px; word-wrap: break-word; }
-        .msg.me { align-self: flex-end; background: var(--message-out); border-bottom-right-radius: 4px; }
-        .msg.other { align-self: flex-start; background: var(--message-in); border-bottom-left-radius: 4px; }
+        .msg.me { background: var(--message-out); border-bottom-right-radius: 4px; }
+        .msg.other { background: var(--message-in); border-bottom-left-radius: 4px; }
+        .msg.system { background: #ffebee; color: #b71c1c; border: 1px solid #ffcdd2; align-self: center; text-align: center; width: 90%; }
 
         @media (max-width: 768px) {
             .sidebar { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; justify-content: space-around; border-top: 1px solid var(--border-color); padding: 0; z-index: 100; align-items: center; }
             .sidebar h2, .desk-label { display: none; }
             .nav-item { flex-direction: column; gap: 2px; padding: 5px; font-size: 10px; margin: 0; background: none !important; }
-            .nav-item svg { width: 24px; height: 24px; }
             #view-chat-room { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 200; padding: 0; display: none; flex-direction: column; }
             .fab { bottom: 70px; }
         }
@@ -236,7 +222,6 @@
 
     <div class="sidebar">
         <h2 style="color:var(--primary-color); margin-bottom:30px; padding-left:10px;" class="desk-label">Haskin</h2>
-        
         <div class="nav-item active" onclick="ui.nav('feed')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span class="desk-label">Лента</span>
@@ -306,9 +291,12 @@
         </div>
         
         <div id="view-chat-room" class="view" style="padding:0; display:none; flex-direction:column; z-index:2000;">
-            <div style="padding:10px; background:var(--secondary-bg); border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px;">
-                <button onclick="ui.nav('chats')" style="border:none; background:none; font-size:24px; color:var(--text-color);">←</button>
-                <b id="chat-title">User</b>
+            <div style="padding:10px; background:var(--secondary-bg); border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="app.navToChatProfile()">
+                <button onclick="event.stopPropagation(); ui.nav('chats')" style="border:none; background:none; font-size:24px; color:var(--text-color);">←</button>
+                <div style="display:flex; flex-direction:column;">
+                    <b id="chat-title">User</b>
+                    <span style="font-size:10px; color:gray;">Нажмите для профиля</span>
+                </div>
             </div>
             <div id="msg-container" class="msg-area"></div>
             <div style="padding:10px; background:var(--secondary-bg); display:flex; gap:10px;">
@@ -324,12 +312,12 @@
 
         <div id="view-settings" class="view">
             <h2>Настройки</h2>
+            <button id="settings-admin-btn" class="action-btn hidden" style="background: red; width: 100%; margin-bottom: 20px;" onclick="ui.nav('admin')">🛡️ Открыть Админку</button>
             <div class="tabs">
                 <button class="tab active" onclick="ui.setTab('acc', this)">Аккаунт</button>
                 <button class="tab" onclick="ui.setTab('ui', this)">Интерфейс</button>
                 <button class="tab" onclick="ui.setTab('priv', this)">Приватность</button>
             </div>
-            
             <div id="set-acc" class="set-page">
                 <div class="card">
                     <h3>Данные</h3>
@@ -346,7 +334,6 @@
                 </div>
                 <button class="action-btn btn-danger" style="width:100%" onclick="app.logout()">Выйти</button>
             </div>
-
             <div id="set-ui" class="set-page hidden">
                 <div class="card">
                     <label class="user-row">
@@ -354,25 +341,17 @@
                     </label>
                 </div>
             </div>
-
             <div id="set-priv" class="set-page hidden">
                 <div class="card">
                     <h3>Приватность</h3>
                     <label class="user-row">
                         <input type="checkbox" id="private-switch" onchange="app.togglePrivate()"> 🔒 Закрытый профиль
                     </label>
-                    <p style="font-size:12px; color:gray">Только подписчики увидят ваши посты.</p>
                 </div>
                 <div class="card">
                     <h3>Смена пароля</h3>
-                    <div class="password-wrapper">
-                        <input type="password" id="ch-pass" placeholder="Новый пароль">
-                        <span class="toggle-pass" onclick="ui.togglePass('ch-pass')">👁️</span>
-                    </div>
-                    <div class="password-wrapper">
-                        <input type="password" id="ch-pass2" placeholder="Повторите пароль">
-                        <span class="toggle-pass" onclick="ui.togglePass('ch-pass2')">👁️</span>
-                    </div>
+                    <div class="password-wrapper"><input type="password" id="ch-pass" placeholder="Новый пароль"><span class="toggle-pass" onclick="ui.togglePass('ch-pass')">👁️</span></div>
+                    <div class="password-wrapper"><input type="password" id="ch-pass2" placeholder="Повторите пароль"><span class="toggle-pass" onclick="ui.togglePass('ch-pass2')">👁️</span></div>
                     <button class="action-btn" onclick="app.changePass()">Сменить</button>
                 </div>
             </div>
@@ -380,7 +359,8 @@
 
         <div id="view-admin" class="view">
             <h2 style="color:red">Админка</h2>
-            <div class="tabs">
+            <button class="action-btn btn-sec" onclick="ui.nav('settings')">← Назад</button>
+            <div class="tabs" style="margin-top:10px;">
                 <button class="tab active" onclick="admin.tab('users')">Юзеры</button>
                 <button class="tab" onclick="admin.tab('verify')">Заявки</button>
                 <button class="tab" onclick="admin.tab('words')">Фильтр</button>
@@ -421,10 +401,12 @@ let listeners = {};
 let tempImg = null;
 let tempAv = null;
 let curChat = null;
+let curChatAvatar = '';
 let curPost = null;
 let captchaAns = 0;
 let lastPostTime = 0;
 let activeChatUnsub = null;
+let forbiddenWords = [];
 
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
@@ -444,18 +426,14 @@ const getAv = (u, sz) => `<img src="${u.avatar||'https://via.placeholder.com/80'
 window.ui = {
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
-        
-        if(v === 'profile' && !p) {
-            if(currentUser) p = currentUser.username;
-            else return; 
-        }
+        if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
         
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         const el = document.getElementById('view-'+(v==='admin'?'admin':v));
         if(el) el.classList.add('active');
         
-        const map = {'feed':0, 'search':1, 'groups':2, 'chats':3, 'notifs':4, 'profile':5, 'admin':6, 'settings':7};
+        const map = {'feed':0, 'search':1, 'groups':2, 'chats':3, 'notifs':4, 'profile':5, 'settings':6};
         if(map[v]!==undefined) document.querySelectorAll('.nav-item')[map[v]].classList.add('active');
         if(v==='chat-room') document.getElementById('view-chat-room').style.display = 'flex';
         else document.getElementById('view-chat-room').style.display = 'none';
@@ -467,6 +445,7 @@ window.ui = {
         if(v==='profile') app.loadProfile(p);
         if(v==='chat-room') app.loadChatRoom(p);
         if(v==='admin') admin.tab('users');
+        if(v==='settings' && currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
     },
     toggleAuth: m => {
         document.getElementById('login-box').classList.toggle('hidden', m!=='login');
@@ -497,7 +476,6 @@ window.app = {
             document.documentElement.setAttribute('data-theme', 'dark');
             document.getElementById('theme-switch').checked = true;
         }
-        
         try {
             const u = localStorage.getItem('user');
             if(u) {
@@ -505,12 +483,16 @@ window.app = {
                 if(s.exists()) {
                     currentUser = s.data();
                     currentUser.blocked = currentUser.blocked || [];
-                    currentUser.requests = currentUser.requests || [];
+                    currentUser.blockedBy = currentUser.blockedBy || [];
+                    currentUser.pinnedChats = currentUser.pinnedChats || [];
                     currentUser.groups = currentUser.groups || [];
-                    currentUser.unlocked = currentUser.unlocked || [];
                     
                     if(currentUser.isBanned) throw new Error('Banned');
                     
+                    // Load Config
+                    const conf = await getDoc(doc(db, 'system', 'config'));
+                    if(conf.exists()) forbiddenWords = conf.data().words || [];
+
                     document.getElementById('auth-screen').style.display='none';
                     document.getElementById('app-screen').style.display='block';
                     if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
@@ -539,21 +521,13 @@ window.app = {
         const p1 = document.getElementById('reg-pass').value;
         const p2 = document.getElementById('reg-pass2').value;
         const c = parseInt(document.getElementById('reg-captcha').value);
-        
         if(!u || !n || !p1) return alert('Заполните поля');
         if(p1!==p2) return alert('Пароли не совпадают');
         if(c!==captchaAns) return alert('Капча неверна');
-        
         try {
             const r = doc(db, 'users', u);
             if((await getDoc(r)).exists()) return alert('Ник занят');
-            await setDoc(r, {
-                username: u, name: n, password: p1,
-                followers: [], following: [], blocked: [], 
-                isAdmin: u==='haskin', isBanned: false, isPrivate: false,
-                requests: [], groups: [], bio: '', status: '',
-                unlocked: [], avatar: '', createdAt: Date.now()
-            });
+            await setDoc(r, { username: u, name: n, password: p1, followers: [], following: [], blocked: [], isAdmin: u==='haskin', isBanned: false, isMuted: false, requests: [], groups: [], bio: '', status: '', avatar: '', createdAt: Date.now() });
             alert('Готово'); ui.toggleAuth('login');
         } catch(e) { alert('Ошибка'); }
     },
@@ -570,19 +544,22 @@ window.app = {
     },
     logout: () => { localStorage.clear(); location.reload(); },
 
+    checkContent: (txt) => {
+        if(!txt) return true;
+        const lower = txt.toLowerCase();
+        for(let w of forbiddenWords) {
+            if(lower.includes(w.toLowerCase())) { alert(`Слово "${w}" запрещено`); return false; }
+        }
+        return true;
+    },
+
     createPost: async () => {
+        if(currentUser.isMuted) return alert("Вы замьючены!");
         if(Date.now()-lastPostTime < 5000) return alert('Не спеши!');
         const txt = document.getElementById('post-text').value.trim();
+        if(!app.checkContent(txt)) return;
         if(!txt && !tempImg) return;
-        
-        const p = {
-            author: currentUser.username, name: currentUser.name,
-            content: txt, image: tempImg || null,
-            likes: [], createdAt: Date.now(),
-            verified: currentUser.isVerified || false,
-            status: currentUser.status || '',
-            avatar: currentUser.avatar || ''
-        };
+        const p = { author: currentUser.username, name: currentUser.name, content: txt, image: tempImg || null, likes: [], createdAt: Date.now(), verified: currentUser.isVerified || false, status: currentUser.status || '', avatar: currentUser.avatar || '' };
         await addDoc(collection(db, 'posts'), p);
         lastPostTime = Date.now();
         document.getElementById('post-text').value='';
@@ -591,36 +568,21 @@ window.app = {
     },
 
     repost: async (postId) => {
-        if(!confirm('Репостнуть к себе?')) return;
+        if(currentUser.isMuted) return alert("Вы замьючены!");
+        if(!confirm('Репостнуть?')) return;
         const orig = (await getDoc(doc(db, 'posts', postId))).data();
-        await addDoc(collection(db, 'posts'), {
-            author: currentUser.username, name: currentUser.name,
-            content: `📢 Репост от @${orig.author}:\n\n${orig.content}`,
-            image: orig.image, likes: [], createdAt: Date.now(),
-            verified: currentUser.isVerified, status: currentUser.status,
-            avatar: currentUser.avatar, isRepost: true
-        });
+        await addDoc(collection(db, 'posts'), { author: currentUser.username, name: currentUser.name, content: `📢 Репост от @${orig.author}:\n\n${orig.content}`, image: orig.image, likes: [], createdAt: Date.now(), verified: currentUser.isVerified, status: currentUser.status, avatar: currentUser.avatar, isRepost: true });
         alert('Репостнут!');
     },
 
     loadFeed: async () => {
         const c = document.getElementById('feed-content'); c.innerHTML = '';
-        
         const yesterday = Date.now() - 86400000;
         const qTop = query(collection(db, 'posts'), where('createdAt', '>', yesterday), orderBy('createdAt', 'desc')); 
         const snaps = await getDocs(qTop);
-        let topPost = null;
-        let maxLikes = -1;
-        
-        snaps.forEach(d => {
-            const p = d.data(); p.id = d.id;
-            if(p.likes && p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; }
-        });
-
-        if(topPost && maxLikes > 0) {
-            c.innerHTML += app.renderPost(topPost, true);
-        }
-
+        let topPost = null; let maxLikes = -1;
+        snaps.forEach(d => { const p = d.data(); p.id = d.id; if(p.likes && p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; } });
+        if(topPost && maxLikes > 0) c.innerHTML += app.renderPost(topPost, true);
         if(listeners.feed) listeners.feed();
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
         listeners.feed = onSnapshot(q, s => {
@@ -640,31 +602,19 @@ window.app = {
         const likes = p.likes || [];
         const isLiked = likes.includes(currentUser.username);
         const isMine = p.author === currentUser.username;
-        return `
-        <div class="card ${isTop?'top-post-banner':''}">
+        return `<div class="card ${isTop?'top-post-banner':''}">
             ${isTop ? '<div class="top-label">👑 ТОП ДНЯ</div>' : ''}
             <div class="post-header" onclick="ui.nav('profile','${p.author}')">
                 ${getAv(p, 'av-40')}
-                <div>
-                    <div style="font-weight:bold; display:flex; align-items:center;">
-                        ${p.name} ${p.verified?ICONS.verify:''} 
-                        ${p.status?`<span class="status-pill">${p.status}</span>`:''}
-                    </div>
-                    <div style="font-size:12px; color:gray">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div>
-                </div>
+                <div><div style="font-weight:bold; display:flex; align-items:center;">${p.name} ${p.verified?ICONS.verify:''} ${p.status?`<span class="status-pill">${p.status}</span>`:''}</div>
+                <div style="font-size:12px; color:gray">@${p.author} • ${new Date(p.createdAt).toLocaleDateString()}</div></div>
             </div>
             <div style="white-space:pre-wrap">${p.content}</div>
             ${p.image ? `<img src="${p.image}" class="post-img">` : ''}
             <div class="post-actions">
-                <div class="act-btn ${isLiked?'liked':''}" onclick="app.like('${p.id}', '${p.author}')">
-                    ${ICONS.like} ${likes.length}
-                </div>
-                <div class="act-btn" onclick="app.openComs('${p.id}', '${p.author}')">
-                    ${ICONS.comment}
-                </div>
-                <div class="act-btn" onclick="app.repost('${p.id}')">
-                    ${ICONS.share}
-                </div>
+                <div class="act-btn ${isLiked?'liked':''}" onclick="app.like('${p.id}', '${p.author}')">${ICONS.like} ${likes.length}</div>
+                <div class="act-btn" onclick="app.openComs('${p.id}', '${p.author}')">${ICONS.comment}</div>
+                <div class="act-btn" onclick="app.repost('${p.id}')">${ICONS.share}</div>
                 ${isMine || currentUser.isAdmin ? `<div class="act-btn" style="margin-left:auto; color:red" onclick="app.delPost('${p.id}')">${ICONS.trash}</div>` : ''}
             </div>
         </div>`;
@@ -674,42 +624,39 @@ window.app = {
         const c = document.getElementById('profile-head');
         c.innerHTML = 'Загрузка...';
         const s = await getDoc(doc(db, 'users', u));
-        
         if(s.exists()) { 
             const user = s.data();
             const isMe = u === currentUser.username;
             const isFollow = currentUser.following.includes(u);
+            const isBlocked = currentUser.blocked.includes(u);
             const isClosed = user.isPrivate && !isMe && !isFollow;
             
             let btn = '';
             if(isMe) btn = `<button class="action-btn" onclick="ui.nav('settings')">Редактировать</button>`;
             else {
-                if(isFollow) btn = `<button class="action-btn btn-sec" onclick="app.follow('${u}')">Отписаться</button> <button class="action-btn" onclick="ui.nav('chat-room','${u}')">Чат</button>`;
-                else if (user.isPrivate) {
-                    const sent = user.requests && user.requests.includes(currentUser.username);
-                    btn = `<button class="action-btn" onclick="app.reqFollow('${u}')">${sent?'Запрос отправлен':'🔒 Запросить подписку'}</button>`;
-                } else {
-                    btn = `<button class="action-btn" onclick="app.follow('${u}')">Подписаться</button>`;
+                if(isBlocked) btn = `<button class="action-btn btn-sec" onclick="app.blockUser('${u}', false)">Разблокировать</button>`;
+                else {
+                    if(isFollow) btn = `<button class="action-btn btn-sec" onclick="app.follow('${u}')">Отписаться</button> <button class="action-btn" onclick="ui.nav('chat-room','${u}')">Чат</button>`;
+                    else if (user.isPrivate) {
+                        const sent = user.requests && user.requests.includes(currentUser.username);
+                        btn = `<button class="action-btn" onclick="app.reqFollow('${u}')">${sent?'Запрос отправлен':'🔒 Запросить подписку'}</button>`;
+                    } else btn = `<button class="action-btn" onclick="app.follow('${u}')">Подписаться</button>`;
+                    btn += `<br><button class="action-btn btn-danger" style="margin-top:5px; font-size:12px;" onclick="app.blockUser('${u}', true)">Заблокировать</button>`;
                 }
             }
 
-            c.innerHTML = `
-                <div class="card" style="text-align:center">
-                    ${getAv(user, 'av-80')}
-                    <h2 style="margin:5px 0">${user.name} ${user.isVerified?ICONS.verify:''}</h2>
-                    <div style="color:gray">@${user.username} ${user.status?`• <span class="status-pill">${user.status}</span>`:''}</div>
-                    <p>${user.bio||''}</p>
-                    <div style="display:flex; justify-content:center; gap:20px; margin:10px 0;">
-                        <b>${user.followers.length} <span style="font-weight:normal; color:gray">подп.</span></b>
-                        <b>${user.following.length} <span style="font-weight:normal; color:gray">подписки</span></b>
-                    </div>
-                    ${btn}
-                </div>
-            `;
+            c.innerHTML = `<div class="card" style="text-align:center">${getAv(user, 'av-80')}
+                <h2 style="margin:5px 0">${user.name} ${user.isVerified?ICONS.verify:''}</h2>
+                <div style="color:gray">@${user.username} ${user.status?`• <span class="status-pill">${user.status}</span>`:''}</div>
+                <p>${user.bio||''}</p>
+                <div style="display:flex; justify-content:center; gap:20px; margin:10px 0;">
+                    <b>${user.followers.length} <span style="font-weight:normal; color:gray">подп.</span></b>
+                    <b>${user.following.length} <span style="font-weight:normal; color:gray">подписки</span></b>
+                </div>${btn}</div>`;
 
             const pc = document.getElementById('profile-posts');
-            if(isClosed) {
-                pc.innerHTML = `<div style="text-align:center; padding:20px; color:gray">${ICONS.lock}<br>Это закрытый аккаунт</div>`;
+            if(isClosed || isBlocked) {
+                pc.innerHTML = `<div style="text-align:center; padding:20px; color:gray">${ICONS.lock}<br>Доступ ограничен</div>`;
             } else {
                 const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
@@ -717,30 +664,14 @@ window.app = {
                 ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
             }
         } else {
+            // Group Logic (Same as before)
             const g = await getDoc(doc(db, 'groups', u));
             if(g.exists()) {
                 const group = g.data();
                 const isMem = group.members.includes(currentUser.username);
                 const isOwner = group.owner === currentUser.username;
-                
-                // Group Owner Controls
-                const ownerControls = isOwner ? `
-                    <div style="display:flex; gap:5px; justify-content:center; margin-top:10px;">
-                        <button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️ Изм.</button>
-                        <button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️ Удл.</button>
-                    </div>
-                ` : '';
-
-                c.innerHTML = `
-                    <div class="card" style="text-align:center">
-                        <div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div>
-                        <h2>${group.name}</h2>
-                        <p>${group.desc}</p>
-                        <p style="color:gray">${group.members.length} участников</p>
-                        ${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}
-                        ${ownerControls}
-                    </div>
-                `;
+                const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec" style="font-size:12px;" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger" style="font-size:12px;" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
+                c.innerHTML = `<div class="card" style="text-align:center"><div class="avatar av-80" style="background:${varColor(group.name)}; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
                  const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 const pc = document.getElementById('profile-posts');
@@ -751,308 +682,206 @@ window.app = {
         }
     },
 
+    blockUser: async (target, doBlock) => {
+        const ref = doc(db, 'users', currentUser.username);
+        if(doBlock) {
+            if(!confirm('Заблокировать?')) return;
+            await updateDoc(ref, { blocked: arrayUnion(target) });
+            await updateDoc(doc(db, 'users', target), { blockedBy: arrayUnion(currentUser.username) });
+            alert('Заблокирован');
+        } else {
+            await updateDoc(ref, { blocked: arrayRemove(target) });
+            await updateDoc(doc(db, 'users', target), { blockedBy: arrayRemove(currentUser.username) });
+            alert('Разблокирован');
+        }
+        ui.nav('profile', target);
+    },
+
     createGroup: async () => {
         const n = document.getElementById('group-name').value.trim();
         const d = document.getElementById('group-desc').value;
         const id = 'public_' + Date.now();
-        await setDoc(doc(db, 'groups', id), {
-            id, name: n, desc: d, owner: currentUser.username, members: [currentUser.username], avatar: ''
-        });
+        await setDoc(doc(db, 'groups', id), { id, name: n, desc: d, owner: currentUser.username, members: [currentUser.username], avatar: '' });
         await updateDoc(doc(db, 'users', currentUser.username), { groups: arrayUnion(id) });
-        ui.closeModals();
-        ui.nav('groups');
+        ui.closeModals(); ui.nav('groups');
     },
-
     loadGroups: async () => {
         const c = document.getElementById('groups-list'); c.innerHTML = 'Загрузка...';
         const q = query(collection(db, 'groups'), limit(20));
         const s = await getDocs(q);
         c.innerHTML = '';
-        s.forEach(d => {
-            const g = d.data();
-            const avHtml = g.avatar ? `<img src="${g.avatar}" class="avatar av-40">` : `<div class="avatar av-40" style="background:${varColor(g.name)}; display:flex; align-items:center; justify-content:center; color:white;">${g.name[0]}</div>`;
-            c.innerHTML += `
-            <div class="card user-row" onclick="ui.nav('profile','${g.id}')">
-                ${avHtml}
-                <div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div>
-            </div>`;
-        });
+        s.forEach(d => { const g = d.data(); const avHtml = g.avatar ? `<img src="${g.avatar}" class="avatar av-40">` : `<div class="avatar av-40" style="background:${varColor(g.name)}; display:flex; align-items:center; justify-content:center; color:white;">${g.name[0]}</div>`; c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${g.id}')">${avHtml}<div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`; });
     },
-
     joinGroup: async (gid, join) => {
         const ref = doc(db, 'groups', gid);
         if(join) await updateDoc(ref, { members: arrayUnion(currentUser.username) });
         else await updateDoc(ref, { members: arrayRemove(currentUser.username) });
         ui.nav('profile', gid);
     },
-
-    // Edit Group Functions
     editGroup: async (gid) => {
         const g = (await getDoc(doc(db, 'groups', gid))).data();
-        document.getElementById('edit-group-name').value = g.name;
-        document.getElementById('edit-group-desc').value = g.desc;
-        document.getElementById('edit-group-id').value = gid;
-        document.getElementById('edit-group-av-prev').src = g.avatar || 'https://via.placeholder.com/80';
-        tempAv = null; // Reset temp
-        document.getElementById('edit-group-modal').style.display = 'flex';
+        document.getElementById('edit-group-name').value = g.name; document.getElementById('edit-group-desc').value = g.desc;
+        document.getElementById('edit-group-id').value = gid; document.getElementById('edit-group-av-prev').src = g.avatar || 'https://via.placeholder.com/80';
+        tempAv = null; document.getElementById('edit-group-modal').style.display = 'flex';
     },
     saveGroupChanges: async () => {
-        const gid = document.getElementById('edit-group-id').value;
-        const n = document.getElementById('edit-group-name').value;
-        const d = document.getElementById('edit-group-desc').value;
-        const upd = { name:n, desc:d };
+        const gid = document.getElementById('edit-group-id').value; const upd = { name:document.getElementById('edit-group-name').value, desc:document.getElementById('edit-group-desc').value };
         if(tempAv) upd.avatar = tempAv;
-        await updateDoc(doc(db, 'groups', gid), upd);
-        ui.closeModals();
-        ui.nav('profile', gid);
+        await updateDoc(doc(db, 'groups', gid), upd); ui.closeModals(); ui.nav('profile', gid);
     },
-    deleteGroup: async (gid) => {
-        if(!confirm('Удалить группу навсегда?')) return;
-        await deleteDoc(doc(db, 'groups', gid));
-        alert('Группа удалена');
-        ui.nav('groups');
-    },
+    deleteGroup: async (gid) => { if(!confirm('Удалить группу?')) return; await deleteDoc(doc(db, 'groups', gid)); alert('Удалена'); ui.nav('groups'); },
     
-    // --- Chats ---
+    // --- CHATS 2.0 ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='Обновление...';
         const friends = currentUser.following; 
-        c.innerHTML = '';
-        if(friends.length===0) c.innerHTML='<p>Подпишитесь на кого-нибудь</p>';
+        const pinned = currentUser.pinnedChats || [];
         
+        let chatsData = [];
         for(const f of friends) {
              const u = await getDoc(doc(db, 'users', f));
              if(!u.exists()) continue;
              const ud = u.data();
-             
              if(ud.following.includes(currentUser.username)) {
-                 c.innerHTML += `<div class="card user-row" onclick="ui.nav('chat-room','${f}')">
-                     ${getAv(ud, 'av-40')} <b>${ud.name}</b>
-                 </div>`;
+                 const chatId = [currentUser.username, f].sort().join('_');
+                 const meta = await getDoc(doc(db, 'chats', chatId));
+                 const lastMsg = meta.exists() ? (meta.data().lastMessage || 'Написать...') : 'Написать...';
+                 const lastTime = meta.exists() ? (meta.data().lastTime || 0) : 0;
+                 chatsData.push({ id: f, user: ud, lastMsg, lastTime });
              }
         }
+        chatsData.sort((a,b) => {
+            const aPin = pinned.includes(a.id); const bPin = pinned.includes(b.id);
+            if(aPin && !bPin) return -1; if(!aPin && bPin) return 1;
+            return b.lastTime - a.lastTime;
+        });
+        c.innerHTML = '';
+        if(chatsData.length===0) c.innerHTML='<p>Подпишитесь на кого-нибудь</p>';
+        chatsData.forEach(ch => {
+            const isPin = pinned.includes(ch.id);
+            c.innerHTML += `<div class="card user-row ${isPin?'pinned-chat':''}" style="justify-content:space-between">
+                <div class="user-row" onclick="ui.nav('chat-room','${ch.id}')" style="flex:1">
+                    ${getAv(ch.user, 'av-40')} 
+                    <div><b>${ch.user.name} ${isPin?'📌':''}</b><div style="font-size:12px; color:gray; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:150px;">${ch.lastMsg}</div></div>
+                </div>
+                <button class="action-btn btn-sec" style="padding:5px" onclick="app.pinChat('${ch.id}')">${isPin?'❌':'📌'}</button>
+            </div>`;
+        });
     },
-    
+    pinChat: async (target) => {
+        if(currentUser.pinnedChats.includes(target)) await updateDoc(doc(db, 'users', currentUser.username), { pinnedChats: arrayRemove(target) });
+        else await updateDoc(doc(db, 'users', currentUser.username), { pinnedChats: arrayUnion(target) });
+        location.reload(); 
+    },
     loadChatRoom: async (partner) => {
         document.getElementById('chat-title').innerText = partner;
         curChat = partner;
+        const u = await getDoc(doc(db, 'users', partner));
+        curChatAvatar = u.exists() ? (u.data().avatar || '') : '';
         const chatId = [currentUser.username, partner].sort().join('_');
         const c = document.getElementById('msg-container');
-        
         if(activeChatUnsub) activeChatUnsub();
-        
         const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('time', 'asc'), limit(50));
         activeChatUnsub = onSnapshot(q, s => {
             c.innerHTML = '';
             s.forEach(d => {
                 const m = d.data();
                 const isMe = m.from === currentUser.username;
-                c.innerHTML += `<div class="msg ${isMe?'me':'other'}">${m.text}</div>`;
+                const isSys = m.from === 'System';
+                let html = '';
+                if(isSys) html = `<div class="msg system">${m.text}</div>`;
+                else html = `<div class="msg-row ${isMe?'me':'other'}">${!isMe ? `<img src="${curChatAvatar||'https://via.placeholder.com/20'}" class="avatar av-20">` : ''}<div class="msg ${isMe?'me':'other'}">${m.text}</div></div>`;
+                c.innerHTML += html;
             });
             c.scrollTop = c.scrollHeight;
         });
     },
-    
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value.trim();
         if(!txt || !curChat) return;
+        if(currentUser.isMuted) return alert("Мут!");
+        if(currentUser.blocked.includes(curChat)) return alert("Разблокируйте сначала");
+        if(!app.checkContent(txt)) return;
+        const p = await getDoc(doc(db, 'users', curChat));
+        if(p.exists() && p.data().blocked.includes(currentUser.username)) return alert("Вы заблокированы пользователем");
         const chatId = [currentUser.username, curChat].sort().join('_');
-        await addDoc(collection(db, 'chats', chatId, 'messages'), {
-            from: currentUser.username, text: txt, time: Date.now()
-        });
+        await addDoc(collection(db, 'chats', chatId, 'messages'), { from: currentUser.username, text: txt, time: Date.now() });
+        await setDoc(doc(db, 'chats', chatId), { lastMessage: txt, lastTime: Date.now() }, { merge: true });
         document.getElementById('msg-input').value = '';
     },
+    navToChatProfile: () => { ui.nav('profile', curChat); },
 
     // --- Actions ---
     like: async (pid, auth) => {
-        const r = doc(db, 'posts', pid);
-        const p = (await getDoc(r)).data();
+        const r = doc(db, 'posts', pid); const p = (await getDoc(r)).data();
         if(p.likes.includes(currentUser.username)) await updateDoc(r, {likes: arrayRemove(currentUser.username)});
-        else {
-            await updateDoc(r, {likes: arrayUnion(currentUser.username)});
-            app.notify(auth, 'like', 'оценил пост');
-        }
+        else { await updateDoc(r, {likes: arrayUnion(currentUser.username)}); app.notify(auth, 'like', 'оценил пост'); }
     },
     follow: async (u) => {
-        const me = doc(db, 'users', currentUser.username);
-        const him = doc(db, 'users', u);
-        if(currentUser.following.includes(u)) {
-            await updateDoc(me, {following: arrayRemove(u)});
-            await updateDoc(him, {followers: arrayRemove(currentUser.username)});
-            currentUser.following = currentUser.following.filter(x=>x!==u);
-        } else {
-            await updateDoc(me, {following: arrayUnion(u)});
-            await updateDoc(him, {followers: arrayUnion(currentUser.username)});
-            currentUser.following.push(u);
-            app.notify(u, 'sub', 'подписался на вас');
-        }
-        ui.nav('profile', u);
-        app.checkAchievs();
+        if(currentUser.blocked.includes(u)) return alert("Сначала разблокируйте");
+        const me = doc(db, 'users', currentUser.username); const him = doc(db, 'users', u);
+        if(currentUser.following.includes(u)) { await updateDoc(me, {following: arrayRemove(u)}); await updateDoc(him, {followers: arrayRemove(currentUser.username)}); currentUser.following = currentUser.following.filter(x=>x!==u); }
+        else { await updateDoc(me, {following: arrayUnion(u)}); await updateDoc(him, {followers: arrayUnion(currentUser.username)}); currentUser.following.push(u); app.notify(u, 'sub', 'подписался на вас'); }
+        ui.nav('profile', u); app.checkAchievs();
     },
-    reqFollow: async (u) => {
-        await updateDoc(doc(db, 'users', u), { requests: arrayUnion(currentUser.username) });
-        app.notify(u, 'req', 'хочет подписаться');
-        alert('Запрос отправлен'); ui.nav('profile', u);
-    },
-    acceptReq: async (u) => {
-        await updateDoc(doc(db, 'users', currentUser.username), { requests: arrayRemove(u), followers: arrayUnion(u) });
-        await updateDoc(doc(db, 'users', u), { following: arrayUnion(currentUser.username) });
-        app.notify(u, 'msg', 'принял вашу заявку');
-        app.listenNotifs();
-    },
+    reqFollow: async (u) => { await updateDoc(doc(db, 'users', u), { requests: arrayUnion(currentUser.username) }); app.notify(u, 'req', 'хочет подписаться'); alert('Запрос отправлен'); ui.nav('profile', u); },
+    acceptReq: async (u) => { await updateDoc(doc(db, 'users', currentUser.username), { requests: arrayRemove(u), followers: arrayUnion(u) }); await updateDoc(doc(db, 'users', u), { following: arrayUnion(currentUser.username) }); app.notify(u, 'msg', 'принял вашу заявку'); app.listenNotifs(); },
     
     openComs: (pid, auth) => {
-        curPost = pid;
-        document.getElementById('comments-modal').style.display='flex';
-        const list = document.getElementById('comments-list');
+        curPost = pid; document.getElementById('comments-modal').style.display='flex'; const list = document.getElementById('comments-list');
         const q = query(collection(db, 'posts', pid, 'comments'), orderBy('time', 'asc'));
-        onSnapshot(q, s => {
-            list.innerHTML='';
-            s.forEach(d => {
-                const c = d.data();
-                list.innerHTML += `<div style="background:#f0f0f0; padding:10px; border-radius:10px; margin-bottom:5px;"><b>${c.author}</b>: ${c.text}</div>`;
-            });
-        });
+        onSnapshot(q, s => { list.innerHTML=''; s.forEach(d => { const c = d.data(); list.innerHTML += `<div style="background:#f0f0f0; padding:10px; border-radius:10px; margin-bottom:5px;"><b>${c.author}</b>: ${c.text}</div>`; }); });
     },
-    sendComment: async () => {
-        const t = document.getElementById('comment-input').value;
-        if(!t) return;
-        await addDoc(collection(db, 'posts', curPost, 'comments'), {
-            author: currentUser.username, text: t, time: Date.now()
-        });
-        document.getElementById('comment-input').value='';
-    },
+    sendComment: async () => { if(currentUser.isMuted) return alert("Мут!"); const t = document.getElementById('comment-input').value; if(!t) return; if(!app.checkContent(t)) return; await addDoc(collection(db, 'posts', curPost, 'comments'), { author: currentUser.username, text: t, time: Date.now() }); document.getElementById('comment-input').value=''; },
     delPost: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',id)); },
 
     // --- Misc ---
     handleImg: el => { if(el.files[0]) compress(el.files[0], d=>{ tempImg=d; document.getElementById('preview-img-el').src=d; document.getElementById('post-img-preview').classList.remove('hidden'); }) },
     clearImg: () => { tempImg=null; document.getElementById('post-img-preview').classList.add('hidden'); },
-    handleAvatar: (el, isGroup=false) => { 
-        if(el.files[0]) compress(el.files[0], d=>{ 
-            tempAv=d; 
-            if(isGroup) document.getElementById('edit-group-av-prev').src = d;
-        }) 
-    },
+    handleAvatar: (el, isGroup=false) => { if(el.files[0]) compress(el.files[0], d=>{ tempAv=d; if(isGroup) document.getElementById('edit-group-av-prev').src = d; }) },
     
-    saveProfile: async () => {
-        const n = document.getElementById('edit-name').value;
-        const b = document.getElementById('edit-bio').value;
-        const s = document.getElementById('edit-status').value;
-        const upd = { name:n, bio:b, status:s };
-        if(tempAv) upd.avatar = tempAv;
-        await updateDoc(doc(db, 'users', currentUser.username), upd);
-        location.reload();
-    },
-    togglePrivate: async () => {
-        const v = document.getElementById('private-switch').checked;
-        await updateDoc(doc(db, 'users', currentUser.username), { isPrivate: v });
-    },
-    changePass: async () => {
-        const p1 = document.getElementById('ch-pass').value;
-        const p2 = document.getElementById('ch-pass2').value;
-        if(!p1) return;
-        if(p1 !== p2) return alert("Пароли не совпадают!");
-        await updateDoc(doc(db, 'users', currentUser.username), { password: p1 });
-        alert('Пароль изменен');
-    },
-    
-    checkAchievs: async () => {
-        const u = currentUser;
-        const unlocked = u.unlocked || [];
-        const posts = (await getDocs(query(collection(db,'posts'), where('author','==',u.username)))).size;
-        
-        const map = { 'Активный': posts>=5, 'Писатель': posts>=50, 'Популярный': u.followers.length>=10 };
-        let ch = false;
-        for(let k in map) {
-            if(map[k] && !unlocked.includes(k)) { unlocked.push(k); ch=true; app.notify(u.username, 'msg', `🏆 Статус: ${k}`); }
-        }
-        if(ch) await updateDoc(doc(db, 'users', u.username), { unlocked });
-        
-        const sel = document.getElementById('edit-status');
-        sel.innerHTML = '<option value="">Нет</option>';
-        unlocked.forEach(s => sel.innerHTML += `<option>${s}</option>`);
-        sel.value = u.status;
-    },
-
-    search: async (v) => {
-        if(!v) return;
-        v = v.toLowerCase();
-        const q = query(collection(db, 'users'), where('username', '>=', v), limit(5));
-        const s = await getDocs(q);
-        const c = document.getElementById('search-res'); c.innerHTML='';
-        s.forEach(d => {
-            const u = d.data();
-            c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${u.username}')">${getAv(u,'av-40')} <b>${u.name}</b></div>`;
-        });
-    },
-
-    notify: async (to, type, txt) => {
-        if(to === currentUser.username) return;
-        await addDoc(collection(db, 'users', to, 'notifications'), { type, text: txt, from: currentUser.username, time: Date.now(), read: false });
-    },
-    listenNotifs: () => {
-        const q = query(collection(db, 'users', currentUser.username, 'notifications'), orderBy('time', 'desc'), limit(20));
-        onSnapshot(q, s => {
-            let n = 0; s.forEach(d => { if(!d.data().read) n++ });
-            document.getElementById('notif-badge').style.display = n?'block':'none';
-            if(document.getElementById('view-notifs').classList.contains('active')) {
-                const c = document.getElementById('notifs-list'); c.innerHTML='';
-                s.forEach(d => {
-                    const x = d.data();
-                    let act = '';
-                    if(x.type === 'req') act = `<button class="action-btn" style="font-size:12px; padding:5px" onclick="app.acceptReq('${x.from}')">Принять</button>`;
-                    c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${x.from}')">
-                        ${ICONS.lock} <div><b>@${x.from}</b> ${x.text}</div> ${act}
-                    </div>`;
-                });
-            }
-        });
-    },
-    
-    reqVerify: async () => {
-        await addDoc(collection(db,'system','verifications','requests'), {
-            username: currentUser.username,
-            realname: document.getElementById('v-real').value,
-            reason: document.getElementById('v-reason').value,
-            status: 'pending'
-        });
-        alert('Заявка отправлена'); ui.closeModals();
-    }
+    saveProfile: async () => { const n = document.getElementById('edit-name').value; const b = document.getElementById('edit-bio').value; const s = document.getElementById('edit-status').value; const upd = { name:n, bio:b, status:s }; if(tempAv) upd.avatar = tempAv; await updateDoc(doc(db, 'users', currentUser.username), upd); location.reload(); },
+    togglePrivate: async () => { const v = document.getElementById('private-switch').checked; await updateDoc(doc(db, 'users', currentUser.username), { isPrivate: v }); },
+    changePass: async () => { const p1 = document.getElementById('ch-pass').value; const p2 = document.getElementById('ch-pass2').value; if(!p1) return; if(p1 !== p2) return alert("Пароли не совпадают!"); await updateDoc(doc(db, 'users', currentUser.username), { password: p1 }); alert('Пароль изменен'); },
+    checkAchievs: async () => { const u = currentUser; const unlocked = u.unlocked || []; const posts = (await getDocs(query(collection(db,'posts'), where('author','==',u.username)))).size; const map = { 'Активный': posts>=5, 'Писатель': posts>=50, 'Популярный': u.followers.length>=10 }; let ch = false; for(let k in map) { if(map[k] && !unlocked.includes(k)) { unlocked.push(k); ch=true; app.notify(u.username, 'msg', `🏆 Статус: ${k}`); } } if(ch) await updateDoc(doc(db, 'users', u.username), { unlocked }); const sel = document.getElementById('edit-status'); sel.innerHTML = '<option value="">Нет</option>'; unlocked.forEach(s => sel.innerHTML += `<option>${s}</option>`); sel.value = u.status; },
+    search: async (v) => { if(!v) return; v = v.toLowerCase(); const q = query(collection(db, 'users'), where('username', '>=', v), limit(5)); const s = await getDocs(q); const c = document.getElementById('search-res'); c.innerHTML=''; s.forEach(d => { const u = d.data(); c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${u.username}')">${getAv(u,'av-40')} <b>${u.name}</b></div>`; }); },
+    notify: async (to, type, txt) => { if(to === currentUser.username) return; await addDoc(collection(db, 'users', to, 'notifications'), { type, text: txt, from: currentUser.username, time: Date.now(), read: false }); },
+    listenNotifs: () => { const q = query(collection(db, 'users', currentUser.username, 'notifications'), orderBy('time', 'desc'), limit(20)); onSnapshot(q, s => { let n = 0; s.forEach(d => { if(!d.data().read) n++ }); document.getElementById('notif-badge').style.display = n?'block':'none'; if(document.getElementById('view-notifs').classList.contains('active')) { const c = document.getElementById('notifs-list'); c.innerHTML=''; s.forEach(d => { const x = d.data(); let act = ''; if(x.type === 'req') act = `<button class="action-btn" style="font-size:12px; padding:5px" onclick="app.acceptReq('${x.from}')">Принять</button>`; c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${x.from}')">${ICONS.lock} <div><b>@${x.from}</b> ${x.text}</div> ${act}</div>`; }); } }); },
+    reqVerify: async () => { await addDoc(collection(db,'system','verifications','requests'), { username: currentUser.username, realname: document.getElementById('v-real').value, reason: document.getElementById('v-reason').value, status: 'pending' }); alert('Заявка отправлена'); ui.closeModals(); }
 };
 
 window.admin = {
     tab: t => {
-        document.getElementById('adm-content').innerHTML = t === 'users' ? '<input oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>' : 'Загрузка...';
-        if(t==='verify') admin.loadV();
+        const c = document.getElementById('adm-content');
+        const b = document.querySelectorAll('.view#view-admin .tab');
+        b.forEach(el => el.classList.remove('active'));
+        if(t==='users') { b[0].classList.add('active'); c.innerHTML = '<input oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>'; }
+        if(t==='verify') { b[1].classList.add('active'); admin.loadV(); }
+        if(t==='words') { b[2].classList.add('active'); admin.loadW(); }
     },
     s: async v => {
         const s = await getDocs(query(collection(db,'users'), where('username','>=',v), limit(5)));
         const c = document.getElementById('adm-list'); c.innerHTML='';
-        s.forEach(d=> {
-            const u = d.data();
-            c.innerHTML += `<div class="card"><b>${u.username}</b> <button onclick="admin.ban('${u.username}')">Бан</button></div>`;
-        });
+        s.forEach(d=> { const u = d.data(); c.innerHTML += `<div class="card"><b>${u.username}</b><br><button class="action-btn btn-danger" onclick="admin.ban('${u.username}')">${u.isBanned?'Разбан':'Бан'}</button> <button class="action-btn btn-sec" onclick="admin.mute('${u.username}')">${u.isMuted?'Unmute':'Mute'}</button> <button class="action-btn" onclick="admin.warn('${u.username}')">Варн</button></div>`; });
     },
-    loadV: async () => {
-        const s = await getDocs(query(collection(db,'system','verifications','requests'), where('status','==','pending')));
-        const c = document.getElementById('adm-content'); c.innerHTML = '';
-        s.forEach(d => {
-            const r = d.data();
-            c.innerHTML += `<div class="card"><b>${r.username}</b>: ${r.realname}<br>${r.reason}<br><button onclick="admin.okV('${d.id}','${r.username}')">Да</button></div>`;
-        });
+    loadV: async () => { const s = await getDocs(query(collection(db,'system','verifications','requests'), where('status','==','pending'))); const c = document.getElementById('adm-content'); c.innerHTML = ''; if(s.empty) c.innerHTML='Нет заявок'; s.forEach(d => { const r = d.data(); c.innerHTML += `<div class="card"><b>${r.username}</b>: ${r.realname}<br>${r.reason}<br><div style="margin-top:10px"><button class="action-btn" onclick="admin.okV('${d.id}','${r.username}')">✅</button> <button class="action-btn btn-danger" onclick="admin.noV('${d.id}')">❌</button></div></div>`; }); },
+    loadW: () => {
+        document.getElementById('adm-content').innerHTML = `<h3>Фильтр слов</h3><p>Разделяйте запятыми</p><textarea id="adm-words" rows="5">${forbiddenWords.join(', ')}</textarea><button class="action-btn" style="margin-top:10px" onclick="admin.saveW()">Сохранить</button>`;
     },
-    okV: async (id, u) => {
-        await updateDoc(doc(db,'users',u), {isVerified:true});
-        await updateDoc(doc(db,'system','verifications','requests',id), {status:'approved'});
-        alert('OK'); admin.loadV();
+    saveW: async () => {
+        const txt = document.getElementById('adm-words').value;
+        const arr = txt.split(',').map(w => w.trim()).filter(w => w);
+        await setDoc(doc(db, 'system', 'config'), { words: arr }, { merge: true });
+        alert('Сохранено'); forbiddenWords = arr;
     },
-    ban: async u => { if(confirm('Бан?')) await updateDoc(doc(db,'users',u), {isBanned:true}); }
+    okV: async (id, u) => { await updateDoc(doc(db,'users',u), {isVerified:true}); await updateDoc(doc(db,'system','verifications','requests',id), {status:'approved'}); alert('OK'); admin.loadV(); },
+    noV: async (id) => { if(!confirm('Отклонить?')) return; await updateDoc(doc(db,'system','verifications','requests',id), {status:'rejected'}); alert('Отклонено'); admin.loadV(); },
+    ban: async u => { if(confirm('Бан/Разбан?')) { const curr = (await getDoc(doc(db,'users',u))).data().isBanned; await updateDoc(doc(db,'users',u), {isBanned:!curr}); } },
+    mute: async u => { const curr = (await getDoc(doc(db,'users',u))).data().isMuted; await updateDoc(doc(db,'users',u), {isMuted:!curr}); alert('Done'); },
+    warn: async u => { const r = prompt('Причина варна:'); if(!r) return; const chatId = ['System', u].sort().join('_'); await addDoc(collection(db, 'chats', chatId, 'messages'), { from: 'System', text: "⚠️ ВАРН: "+r, time: Date.now() }); await addDoc(collection(db, 'users', u, 'notifications'), { type: 'msg', text: 'Получил предупреждение!', from: 'System', time: Date.now(), read: false }); alert('Отправлено'); }
 };
 
-const varColor = (str) => {
-    let hash = 0; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    return `hsl(${hash % 360}, 60%, 50%)`;
-}
+const varColor = (str) => { let hash = 0; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash); return `hsl(${hash % 360}, 60%, 50%)`; }
 
 app.init();
 </script>
