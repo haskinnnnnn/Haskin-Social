@@ -19,7 +19,8 @@
             --danger-color: #ff4444;
             --like-color: #e91e63;
             --notification-dot: #ff3b30;
-            --system-color: #0056b3; /* Синий для System */
+            --system-color: #0056b3;
+            --pinned-color: #e6f3ff;
         }
 
         [data-theme="dark"] {
@@ -32,6 +33,7 @@
             --message-out: #8774e1;
             --message-in: #212121;
             --input-bg: #1c1c1d;
+            --pinned-color: #1a1a2e;
         }
 
         body {
@@ -50,12 +52,34 @@
         }
         .btn-danger { background: var(--danger-color); }
         .btn-system { background: var(--system-color); }
+        .btn-secondary { background: gray; }
 
         input, textarea {
             width: 100%; padding: 12px; margin: 5px 0;
             border: 1px solid var(--border-color); border-radius: 10px;
             background: var(--input-bg); color: var(--text-color);
             box-sizing: border-box; font-family: inherit; font-size: 16px;
+        }
+
+        /* --- Password Toggle Wrapper --- */
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .password-wrapper input {
+            padding-right: 45px; /* Место для глаза */
+        }
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            opacity: 0.6;
+            padding: 0;
         }
 
         /* --- Layout --- */
@@ -91,7 +115,6 @@
             margin-bottom: 15px; padding-left: 5px; letter-spacing: -1px;
         }
 
-        /* Navigation */
         .nav-item {
             padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 5px;
             display: flex; align-items: center; color: var(--text-color); position: relative;
@@ -114,16 +137,17 @@
         .avatar-small { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ccc; margin-right: 10px; flex-shrink: 0; }
         .avatar-large { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: #ccc; margin-bottom: 10px; }
         
-        /* SYSTEM AVATAR */
         .avatar-system {
             background: var(--system-color); color: white; display: flex; 
             justify-content: center; align-items: center; font-weight: 900; font-family: serif;
         }
 
         .user-row { display: flex; align-items: center; }
+        .pinned-chat { background-color: var(--pinned-color); border: 1px solid var(--primary-color); }
 
         .post-header { display: flex; align-items: center; margin-bottom: 8px; cursor: pointer; }
-        .post-author-name { font-weight: bold; color: var(--primary-color); }
+        .post-author-name { font-weight: bold; color: var(--primary-color); margin-right: 5px;}
+        .post-author-username { color: gray; font-size: 0.9em; font-weight: normal;}
         .post-date { font-size: 0.75em; color: gray; margin-left: auto; }
         .post-image { width: 100%; height: auto; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border-color); }
         
@@ -132,22 +156,18 @@
         .like-active { color: var(--like-color); }
         .delete-btn { color: var(--danger-color); cursor: pointer; font-size: 1.2em; padding: 5px; margin-left: auto; }
 
-        /* Notifications */
         .notif-item { display: flex; align-items: center; cursor: pointer; }
         .notif-text { font-size: 0.9em; }
-        .notif-time { font-size: 0.7em; color: gray; margin-top: 3px; }
         .notif-unread { border-left: 3px solid var(--primary-color); }
 
-        /* Admin Panel Styles */
         .stat-box {
             display: inline-block; width: 45%; background: var(--input-bg);
             padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;
         }
-        .banned-flag { color: red; font-weight: bold; border: 1px solid red; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; }
+        .flag-tag { color: red; font-weight: bold; border: 1px solid red; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; margin-left: 5px; }
         .admin-tab-btn { background: none; border: 1px solid var(--border-color); padding: 5px 10px; border-radius: 20px; cursor: pointer; color: var(--text-color); margin-right: 5px; }
         .admin-tab-btn.active { background: var(--primary-color); color: white; border: none; }
 
-        /* Modals */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 3000;
@@ -164,7 +184,6 @@
         .comment-item { display: flex; gap: 10px; margin-bottom: 15px; }
         .comment-text { background: var(--input-bg); padding: 8px 12px; border-radius: 12px; font-size: 0.9em; width: 100%; }
 
-        /* Chat */
         .messages-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
         .message-bubble {
             max-width: 75%; padding: 10px 14px; border-radius: 18px;
@@ -201,17 +220,34 @@
         <div class="auth-box" id="login-box">
             <h1 style="color:var(--primary-color); margin-bottom:20px;">Haskin</h1>
             <h2>Вход</h2>
-            <input type="text" id="login-username" placeholder="Юзернейм">
-            <input type="password" id="login-password" placeholder="Пароль">
+            <input type="text" id="login-username" placeholder="Юзернейм (@...)">
+            <div class="password-wrapper">
+                <input type="password" id="login-password" placeholder="Пароль">
+                <button class="toggle-password-btn" onclick="ui.togglePass('login-password', this)">👁️</button>
+            </div>
             <button class="action-btn" style="width:100%; margin-top:10px;" onclick="app.login()">Войти</button>
             <p style="color:var(--primary-color); cursor:pointer; margin-top:15px;" onclick="ui.toggleAuth('register')">Создать аккаунт</p>
         </div>
         <div class="auth-box hidden" id="register-box">
             <h1 style="color:var(--primary-color); margin-bottom:20px;">Haskin</h1>
             <h2>Регистрация</h2>
-            <input type="text" id="reg-username" placeholder="Никнейм">
-            <input type="password" id="reg-password" placeholder="Пароль">
-            <button class="action-btn" style="width:100%; margin-top:10px;" onclick="app.register()">Готово</button>
+            <input type="text" id="reg-username" placeholder="Юзернейм (англ)">
+            <input type="text" id="reg-name" placeholder="Ваше Имя (видно всем)">
+            
+            <div class="password-wrapper">
+                <input type="password" id="reg-password" placeholder="Пароль">
+                <button class="toggle-password-btn" onclick="ui.togglePass('reg-password', this)">👁️</button>
+            </div>
+            <div class="password-wrapper">
+                <input type="password" id="reg-password-confirm" placeholder="Повторите пароль">
+                <button class="toggle-password-btn" onclick="ui.togglePass('reg-password-confirm', this)">👁️</button>
+            </div>
+
+            <div style="margin-top:10px; border:1px solid var(--border-color); padding:10px; border-radius:8px;">
+                <p style="margin:0 0 5px 0;">Капча: Сколько будет <b id="captcha-task">...</b>?</p>
+                <input type="number" id="reg-captcha" placeholder="Ответ" style="margin:0;">
+            </div>
+            <button class="action-btn" style="width:100%; margin-top:10px;" onclick="app.register()">Создать</button>
             <p style="color:var(--primary-color); cursor:pointer; margin-top:15px;" onclick="ui.toggleAuth('login')">Назад</p>
         </div>
     </div>
@@ -227,7 +263,9 @@
                     <input type="file" hidden accept="image/*" onchange="app.handleAvatarSelect(this)">
                 </label>
             </div>
-            <textarea id="edit-bio" placeholder="О себе..." rows="3" style="margin-top:15px;"></textarea>
+            <p style="margin-top:10px; margin-bottom:0; font-size:0.9em; color:gray;">Отображаемое имя:</p>
+            <input type="text" id="edit-name" placeholder="Имя">
+            <textarea id="edit-bio" placeholder="О себе..." rows="3" style="margin-top:10px;"></textarea>
             <button class="action-btn" style="width:100%; margin-top:10px;" onclick="app.saveProfile()">Сохранить</button>
         </div>
     </div>
@@ -282,7 +320,7 @@
 
             <div id="view-search" class="view">
                 <h2>Поиск людей</h2>
-                <input type="text" placeholder="Введите имя..." oninput="app.searchUsers(this.value)">
+                <input type="text" placeholder="Введите @юзернейм..." oninput="app.searchUsers(this.value)">
                 <div id="search-results" style="margin-top:15px;"></div>
             </div>
 
@@ -305,7 +343,9 @@
             <div id="view-chat-room" class="view" style="padding:0; display:none; flex-direction:column;">
                 <div style="padding:10px 15px; border-bottom:1px solid var(--border-color); background:var(--sidebar-bg); display:flex; align-items:center;">
                     <button onclick="ui.navigate('chats')" style="background:none; border:none; font-size:1.5em; margin-right:10px; color:var(--text-color);">←</button>
-                    <b id="chat-with-name" style="cursor:pointer;">User</b>
+                    <div id="chat-header-info" style="display:flex; flex-direction:column; cursor:pointer;">
+                        <b id="chat-with-name">User</b>
+                    </div>
                 </div>
                 <div class="messages-area" id="messages-container"></div>
                 <div style="padding:10px; background:var(--sidebar-bg); display:flex; gap:10px; border-top:1px solid var(--border-color); padding-bottom: env(safe-area-inset-bottom, 10px);">
@@ -316,41 +356,28 @@
 
             <div id="view-admin" class="view">
                 <h2 style="color:var(--danger-color)">Админ-панель</h2>
-                
                 <div style="overflow-x:auto; white-space:nowrap; padding-bottom:10px;">
                     <button class="admin-tab-btn active" onclick="admin.switchTab('dashboard', this)">Главная</button>
                     <button class="admin-tab-btn" onclick="admin.switchTab('users', this)">Пользователи</button>
-                    <button class="admin-tab-btn" onclick="admin.switchTab('words', this)">Запрещенные слова</button>
-                    <button class="admin-tab-btn" onclick="admin.switchTab('logs', this)">Логи нарушений</button>
+                    <button class="admin-tab-btn" onclick="admin.switchTab('words', this)">Запреты</button>
+                    <button class="admin-tab-btn" onclick="admin.switchTab('logs', this)">Логи</button>
                 </div>
-
                 <div id="admin-tab-dashboard" class="admin-tab">
                     <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
-                        <div class="stat-box">
-                            <h3>Всего юзеров</h3>
-                            <span class="stat-num" id="stat-users-total">...</span>
-                        </div>
-                        <div class="stat-box">
-                            <h3>В сети (15м)</h3>
-                            <span class="stat-num" id="stat-users-active">...</span>
-                        </div>
+                        <div class="stat-box"><h3>Всего</h3><span class="stat-num" id="stat-users-total">...</span></div>
+                        <div class="stat-box"><h3>Онлайн</h3><span class="stat-num" id="stat-users-active">...</span></div>
                     </div>
                 </div>
-
                 <div id="admin-tab-users" class="admin-tab hidden">
-                    <input type="text" placeholder="Поиск юзера для бана/варна..." oninput="admin.searchUser(this.value)">
+                    <input type="text" placeholder="Поиск по юзернейму..." oninput="admin.searchUser(this.value)">
                     <div id="admin-users-list"></div>
                 </div>
-
                 <div id="admin-tab-words" class="admin-tab hidden">
                     <p>Слова разделять запятой. Регистр не важен.</p>
                     <textarea id="admin-bad-words" rows="5"></textarea>
                     <button class="action-btn" onclick="admin.saveWords()">Сохранить список</button>
                 </div>
-
-                <div id="admin-tab-logs" class="admin-tab hidden">
-                    <div id="admin-logs-list"></div>
-                </div>
+                <div id="admin-tab-logs" class="admin-tab hidden"><div id="admin-logs-list"></div></div>
             </div>
 
             <div id="view-settings" class="view">
@@ -361,6 +388,18 @@
                         Тёмная тема
                     </label>
                 </div>
+                <div class="post-card">
+                    <h3>Безопасность</h3>
+                    <div class="password-wrapper">
+                        <input type="password" id="new-password-input" placeholder="Новый пароль">
+                        <button class="toggle-password-btn" onclick="ui.togglePass('new-password-input', this)">👁️</button>
+                    </div>
+                    <div class="password-wrapper">
+                        <input type="password" id="new-password-confirm" placeholder="Повторите новый пароль">
+                        <button class="toggle-password-btn" onclick="ui.togglePass('new-password-confirm', this)">👁️</button>
+                    </div>
+                    <button class="action-btn" style="margin-top:10px;" onclick="app.changePassword()">Сменить пароль</button>
+                </div>
                 <button class="action-btn" style="background-color: var(--danger-color); margin-top: 20px;" onclick="app.logout()">Выйти из аккаунта</button>
             </div>
         </div>
@@ -370,7 +409,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    // 🔴 КЛЮЧИ (Оставь свои!)
+    // 🔴 КЛЮЧИ
     const firebaseConfig = {
       apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
       authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -391,7 +430,8 @@
     let tempImage = null;
     let tempAvatar = null;
     let currentPostIdForComments = null;
-    let forbiddenWords = []; // Cache for words
+    let forbiddenWords = [];
+    let captchaResult = 0;
 
     const compressImage = (file, callback) => {
         const reader = new FileReader(); reader.readAsDataURL(file);
@@ -408,7 +448,6 @@
         };
     };
 
-    // --- UTILS ---
     const getAvatarHTML = (username, url, sizeClass) => {
         if(username === 'System') return `<div class="${sizeClass} avatar-system">H</div>`;
         return `<img src="${url || 'https://via.placeholder.com/80'}" class="${sizeClass}">`;
@@ -422,6 +461,7 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
                 document.getElementById('theme-toggle').checked = true;
             }
+            app.generateCaptcha();
             const savedUser = localStorage.getItem('my_social_user');
             if (savedUser) {
                 try {
@@ -433,36 +473,44 @@
                             app.logout(); return;
                         }
                         app.user = userData;
-                        // Auto-promote haskin
                         if(app.user.username === 'haskin' && !app.user.isAdmin) {
                             await updateDoc(doc(db, "users", "haskin"), { isAdmin: true });
                             app.user.isAdmin = true;
                         }
-                        // Update active
                         await updateDoc(doc(db, "users", app.user.username), { lastActive: Date.now() });
-                        
-                        // Load forbidden words
                         const conf = await getDoc(doc(db, "system", "config"));
                         if(conf.exists()) forbiddenWords = conf.data().words || [];
-
-                        ui.showApp(); 
-                        app.listenNotifs();
+                        ui.showApp(); app.listenNotifs();
                     } else ui.showAuth();
                 } catch(e){ ui.showAuth(); }
             } else ui.showAuth();
         },
 
+        generateCaptcha: () => {
+            const a = Math.floor(Math.random() * 10);
+            const b = Math.floor(Math.random() * 10);
+            captchaResult = a + b;
+            document.getElementById('captcha-task').innerText = `${a} + ${b}`;
+        },
+
         register: async () => {
             const username = document.getElementById('reg-username').value.trim().toLowerCase();
+            const name = document.getElementById('reg-name').value.trim();
             const password = document.getElementById('reg-password').value.trim();
-            if(!username || !password) return alert('Заполните поля');
+            const passwordConfirm = document.getElementById('reg-password-confirm').value.trim();
+            const captchaInput = parseInt(document.getElementById('reg-captcha').value);
+
+            if(!username || !password || !name) return alert('Заполните все поля');
+            if(password !== passwordConfirm) return alert('Пароли не совпадают!');
+            if(captchaInput !== captchaResult) { alert('Неверная капча'); app.generateCaptcha(); return; }
             if(username === 'system') return alert('Ник занят');
+            
             try {
                 const userRef = doc(db, "users", username);
-                if ((await getDoc(userRef)).exists()) return alert('Занят');
+                if ((await getDoc(userRef)).exists()) return alert('Никнейм занят');
                 await setDoc(userRef, { 
-                    username, password, followers:[], following:[], blockedUsers:[], bio:'', avatar:'', 
-                    isAdmin: (username==='haskin'), isBanned: false, lastActive: Date.now() 
+                    username, name, password, followers:[], following:[], blockedUsers:[], pinnedChats: [], bio:'', avatar:'', 
+                    isAdmin: (username==='haskin'), isBanned: false, isMuted: false, lastActive: Date.now() 
                 });
                 alert('Готово! Войдите.'); ui.toggleAuth('login');
             } catch(e){ alert("Ошибка Firebase"); }
@@ -483,34 +531,41 @@
         },
         logout: () => { localStorage.removeItem('my_social_user'); location.reload(); },
 
-        // --- MODERATION ---
+        changePassword: async () => {
+            const newPass = document.getElementById('new-password-input').value.trim();
+            const newPassConfirm = document.getElementById('new-password-confirm').value.trim();
+            if(!newPass) return alert("Введите пароль");
+            if(newPass !== newPassConfirm) return alert("Пароли не совпадают!");
+            
+            await updateDoc(doc(db, "users", app.user.username), { password: newPass });
+            alert("Пароль изменен");
+            document.getElementById('new-password-input').value = '';
+            document.getElementById('new-password-confirm').value = '';
+        },
+
         checkContent: async (text) => {
             if(!text) return true;
+            if(app.user.isMuted) { alert("У вас мут. Вы не можете публиковать контент."); return false; }
             const lower = text.toLowerCase();
             for(const word of forbiddenWords) {
                 if(lower.includes(word.toLowerCase().trim())) {
-                    // Violation!
-                    alert(`Ваш контент «${word}» был заблокирован по причине использования запрещенных выражений на платформе Haskin`);
-                    await addDoc(collection(db, "system", "logs", "items"), {
-                        user: app.user.username,
-                        word: word,
-                        fullText: text,
-                        timestamp: Date.now()
-                    });
+                    alert(`Контент заблокирован (запрещенное слово: ${word})`);
+                    await addDoc(collection(db, "system", "logs", "items"), { user: app.user.username, word: word, fullText: text, timestamp: Date.now() });
                     return false;
                 }
             }
             return true;
         },
 
-        // --- CORE ---
         handleAvatarSelect: (input) => { if(input.files[0]) compressImage(input.files[0], (b64) => { tempAvatar = b64; document.getElementById('edit-avatar-preview').src = b64; }); },
         saveProfile: async () => {
+            const name = document.getElementById('edit-name').value.trim();
             const bio = document.getElementById('edit-bio').value.trim();
-            const updates = { bio: bio };
+            if(!name) return alert("Имя не может быть пустым");
+            const updates = { name: name, bio: bio };
             if(tempAvatar) updates.avatar = tempAvatar;
             await updateDoc(doc(db, "users", app.user.username), updates);
-            app.user.bio = bio; if(tempAvatar) app.user.avatar = tempAvatar;
+            app.user.name = name; app.user.bio = bio; if(tempAvatar) app.user.avatar = tempAvatar;
             ui.closeModals(); ui.renderProfile(app.user.username);
         },
 
@@ -518,9 +573,8 @@
         createPost: async () => {
             const text = document.getElementById('new-post-text').value.trim();
             if(!text && !tempImage) return;
-            if(!(await app.checkContent(text))) return; // Moderation check
-
-            const post = { author: app.user.username, content: text, createdAt: Date.now(), likes: [], commentsCount: 0 };
+            if(!(await app.checkContent(text))) return;
+            const post = { author: app.user.username, authorName: app.user.name, content: text, createdAt: Date.now(), likes: [] };
             post.authorAvatar = app.user.avatar || '';
             if(tempImage) post.image = tempImage;
             await addDoc(collection(db, "posts"), post);
@@ -531,26 +585,23 @@
 
         sendNotification: async (target, type, text) => {
             if(target === app.user.username) return; 
-            await addDoc(collection(db, "users", target, "notifications"), {
-                type: type, from: app.user.username, text: text || '', timestamp: Date.now(), read: false
-            });
+            await addDoc(collection(db, "users", target, "notifications"), { type, from: app.user.username, text: text || '', timestamp: Date.now(), read: false });
         },
 
         listenNotifs: () => {
             if(notifsUnsub) notifsUnsub();
             const q = query(collection(db, "users", app.user.username, "notifications"), orderBy("timestamp", "desc"), limit(20));
             notifsUnsub = onSnapshot(q, (snapshot) => {
-                const badge = document.getElementById('notif-badge');
                 let hasUnread = false;
                 snapshot.forEach(d => { if(!d.data().read) hasUnread = true; });
-                badge.style.display = hasUnread ? 'block' : 'none';
+                document.getElementById('notif-badge').style.display = hasUnread ? 'block' : 'none';
                 if(document.getElementById('view-notifs').classList.contains('active')) ui.renderNotifications(snapshot);
             });
         },
 
         searchUsers: async (queryText) => {
             const container = document.getElementById('search-results');
-            queryText = queryText.toLowerCase().trim();
+            queryText = queryText.toLowerCase().trim().replace('@','');
             if(!queryText) { container.innerHTML=''; return; }
             const q = query(collection(db, "users"), where("username", ">=", queryText), where("username", "<=", queryText + '\uf8ff'), limit(10));
             const snapshot = await getDocs(q);
@@ -562,7 +613,7 @@
                 const div = document.createElement('div');
                 div.className = 'user-item user-row';
                 div.onclick = () => ui.navigate('profile', u.username);
-                div.innerHTML = `${getAvatarHTML(u.username, u.avatar, 'avatar-small')}<div><div style="font-weight:bold">@${u.username}</div><div style="font-size:0.8em; color:gray;">Открыть</div></div>`;
+                div.innerHTML = `${getAvatarHTML(u.username, u.avatar, 'avatar-small')}<div><div style="font-weight:bold">${u.name}</div><div style="font-size:0.8em; color:gray;">@${u.username}</div></div>`;
                 container.appendChild(div);
             });
         },
@@ -572,28 +623,22 @@
             const postSnap = await getDoc(postRef);
             if(!postSnap.exists()) return;
             const likes = postSnap.data().likes || [];
-            if(likes.includes(app.user.username)) {
-                await updateDoc(postRef, { likes: arrayRemove(app.user.username) });
-            } else {
-                await updateDoc(postRef, { likes: arrayUnion(app.user.username) });
-                app.sendNotification(author, 'like', 'лайкнул ваш пост');
-            }
+            if(likes.includes(app.user.username)) await updateDoc(postRef, { likes: arrayRemove(app.user.username) });
+            else { await updateDoc(postRef, { likes: arrayUnion(app.user.username) }); app.sendNotification(author, 'like', 'лайкнул ваш пост'); }
         },
 
         openComments: (postId, author) => {
-            currentPostIdForComments = postId;
-            window.currentPostAuthor = author; 
+            currentPostIdForComments = postId; window.currentPostAuthor = author; 
             document.getElementById('comments-modal').style.display = 'flex';
             const container = document.getElementById('comments-list');
             if(commentsUnsub) commentsUnsub();
             commentsUnsub = onSnapshot(query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc")), (snapshot) => {
                 container.innerHTML = '';
-                if(snapshot.empty) container.innerHTML = '<p style="text-align:center; color:gray">Нет комментариев</p>';
                 snapshot.forEach(docSnap => {
                     const c = docSnap.data();
                     const div = document.createElement('div');
                     div.className = 'comment-item';
-                    div.innerHTML = `${getAvatarHTML(c.author, c.avatar, 'avatar-small')} <div class="comment-text"><b>@${c.author}</b><br>${c.text}</div>`;
+                    div.innerHTML = `${getAvatarHTML(c.author, c.avatar, 'avatar-small')} <div class="comment-text"><b>${c.authorName || c.author}</b><br>${c.text}</div>`;
                     container.appendChild(div);
                 });
                 container.scrollTop = container.scrollHeight;
@@ -603,12 +648,9 @@
         sendComment: async () => {
             const text = document.getElementById('comment-input').value.trim();
             if(!text || !currentPostIdForComments) return;
-            if(!(await app.checkContent(text))) return; // Moderation
-
-            await addDoc(collection(db, "posts", currentPostIdForComments, "comments"), {
-                author: app.user.username, avatar: app.user.avatar || '', text: text, timestamp: Date.now()
-            });
-            if(window.currentPostAuthor) app.sendNotification(window.currentPostAuthor, 'comment', 'прокомментировал: ' + text);
+            if(!(await app.checkContent(text))) return;
+            await addDoc(collection(db, "posts", currentPostIdForComments, "comments"), { author: app.user.username, authorName: app.user.name, avatar: app.user.avatar || '', text: text, timestamp: Date.now() });
+            if(window.currentPostAuthor) app.sendNotification(window.currentPostAuthor, 'comment', 'прокомментировал ваш пост');
             document.getElementById('comment-input').value = '';
         },
 
@@ -629,20 +671,38 @@
         },
         
         blockUser: async (target) => {
-            if(!confirm(`Заблокировать @${target}? Вы не будете видеть его посты, а он не сможет писать вам.`)) return;
-            const myRef = doc(db, "users", app.user.username);
-            await updateDoc(myRef, { blockedUsers: arrayUnion(target) });
+            if(!confirm(`Заблокировать @${target}?`)) return;
+            await updateDoc(doc(db, "users", app.user.username), { blockedUsers: arrayUnion(target) });
             if(!app.user.blockedUsers) app.user.blockedUsers = [];
             app.user.blockedUsers.push(target);
-            // Also unsubscribe if following
             if(app.user.following.includes(target)) app.follow(target);
-            alert("Пользователь заблокирован.");
-            ui.navigate('feed');
+            alert("Заблокирован."); ui.navigate('feed');
+        },
+        
+        unblockUser: async (target) => {
+            await updateDoc(doc(db, "users", app.user.username), { blockedUsers: arrayRemove(target) });
+            app.user.blockedUsers = app.user.blockedUsers.filter(u => u !== target);
+            alert("Разблокирован."); ui.renderProfile(target);
+        },
+
+        togglePin: async (target) => {
+             const myRef = doc(db, "users", app.user.username);
+             let pinned = app.user.pinnedChats || [];
+             if(pinned.includes(target)) {
+                 await updateDoc(myRef, { pinnedChats: arrayRemove(target) });
+                 app.user.pinnedChats = pinned.filter(u => u !== target);
+             } else {
+                 await updateDoc(myRef, { pinnedChats: arrayUnion(target) });
+                 if(!app.user.pinnedChats) app.user.pinnedChats = [];
+                 app.user.pinnedChats.push(target);
+             }
+             ui.renderChatsList();
         },
 
         sendMessage: async () => {
             const text = document.getElementById('message-input').value.trim();
             if(!text || !window.currentChatPartner) return;
+            if(app.user.isMuted) return alert("У вас мут");
             const chatId = [app.user.username, window.currentChatPartner].sort().join('_');
             await addDoc(collection(db, "chats", chatId, "messages"), { sender: app.user.username, text, timestamp: Date.now() });
             app.sendNotification(window.currentChatPartner, 'msg', 'прислал сообщение');
@@ -664,19 +724,14 @@
             if(tabId === 'logs') admin.loadLogs();
             if(tabId === 'words') document.getElementById('admin-bad-words').value = forbiddenWords.join(', ');
         },
-        
         loadStats: async () => {
             const all = await getDocs(collection(db, "users"));
             document.getElementById('stat-users-total').innerText = all.size;
             let active = 0;
             const fifteenMins = 15 * 60 * 1000;
-            all.forEach(d => {
-                const u = d.data();
-                if(u.lastActive && (Date.now() - u.lastActive) < fifteenMins) active++;
-            });
+            all.forEach(d => { if(d.data().lastActive && (Date.now() - d.data().lastActive) < fifteenMins) active++; });
             document.getElementById('stat-users-active').innerText = active;
         },
-
         searchUser: async (val) => {
             const container = document.getElementById('admin-users-list');
             if(!val) return;
@@ -688,37 +743,33 @@
                 const div = document.createElement('div');
                 div.className = 'admin-card';
                 div.innerHTML = `
-                    <b>@${u.username}</b> ${u.isBanned ? '<span class="banned-flag">BANNED</span>' : ''}
-                    <br>
+                    <b>${u.name}</b> (@${u.username}) 
+                    ${u.isBanned ? '<span class="flag-tag">BAN</span>' : ''} 
+                    ${u.isMuted ? '<span class="flag-tag">MUTE</span>' : ''}
+                    <br><br>
                     <button class="action-btn btn-danger" onclick="admin.banUser('${u.username}', ${!u.isBanned})">${u.isBanned?'РАЗБАНИТЬ':'ЗАБАНИТЬ'}</button>
-                    <button class="action-btn btn-system" onclick="admin.warnUser('${u.username}')">⚠️ Предупреждение</button>
-                    ${!u.isAdmin ? `<button class="action-btn" onclick="admin.makeAdmin('${u.username}')">Назначить админом</button>` : ' (Админ)'}
+                    <button class="action-btn btn-secondary" onclick="admin.muteUser('${u.username}', ${!u.isMuted})">${u.isMuted?'СНЯТЬ МУТ':'МУТ'}</button>
+                    <button class="action-btn btn-system" onclick="admin.warnUser('${u.username}')">Варн</button>
+                    <button class="action-btn" style="background:black" onclick="admin.deleteUser('${u.username}')">УДАЛИТЬ АККАУНТ</button>
+                    ${!u.isAdmin ? `<button class="action-btn" onclick="admin.makeAdmin('${u.username}')">Дать Админку</button>` : ''}
                 `;
                 container.appendChild(div);
             });
         },
-        banUser: async (target, doBan) => {
-            if(!confirm(doBan ? `Забанить ${target}?` : `Разбанить ${target}?`)) return;
-            await updateDoc(doc(db, "users", target), { isBanned: doBan });
-            alert("Готово");
+        banUser: async (target, doBan) => { if(!confirm("Подтвердить бан?")) return; await updateDoc(doc(db, "users", target), { isBanned: doBan }); alert("Ок"); },
+        muteUser: async (target, doMute) => { await updateDoc(doc(db, "users", target), { isMuted: doMute }); alert("Ок"); },
+        deleteUser: async (target) => {
+            if(!confirm("УДАЛИТЬ ПОЛЬЗОВАТЕЛЯ НАВСЕГДА? Это нельзя отменить.")) return;
+            await deleteDoc(doc(db, "users", target));
+            alert("Пользователь удален.");
         },
-        makeAdmin: async (target) => {
-            if(!confirm(`Сделать ${target} админом?`)) return;
-            await updateDoc(doc(db, "users", target), { isAdmin: true });
-            alert("Права выданы");
-        },
+        makeAdmin: async (target) => { if(!confirm(`Сделать ${target} админом?`)) return; await updateDoc(doc(db, "users", target), { isAdmin: true }); alert("Права выданы"); },
         warnUser: async (target) => {
-            const reason = prompt("Текст официального предупреждения:");
+            const reason = prompt("Текст предупреждения:");
             if(!reason) return;
-            // Send msg from System
             const chatId = ['System', target].sort().join('_');
-            await addDoc(collection(db, "chats", chatId, "messages"), { 
-                sender: 'System', text: "⚠️ ОФИЦИАЛЬНОЕ ПРЕДУПРЕЖДЕНИЕ: " + reason, timestamp: Date.now() 
-            });
-            // Send notif
-            await addDoc(collection(db, "users", target, "notifications"), {
-                type: 'msg', from: 'System', text: '⚠️ ПРЕДУПРЕЖДЕНИЕ', timestamp: Date.now(), read: false
-            });
+            await addDoc(collection(db, "chats", chatId, "messages"), { sender: 'System', text: "⚠️ ПРЕДУПРЕЖДЕНИЕ: " + reason, timestamp: Date.now() });
+            await addDoc(collection(db, "users", target, "notifications"), { type: 'msg', from: 'System', text: '⚠️ ПРЕДУПРЕЖДЕНИЕ', timestamp: Date.now(), read: false });
             alert("Отправлено");
         },
         saveWords: async () => {
@@ -726,23 +777,18 @@
             const arr = raw.split(',').map(s => s.trim()).filter(s => s);
             await setDoc(doc(db, "system", "config"), { words: arr }, {merge:true});
             forbiddenWords = arr;
-            alert("Список слов обновлен");
+            alert("Обновлено");
         },
         loadLogs: async () => {
-            const c = document.getElementById('admin-logs-list');
-            c.innerHTML = 'Загрузка...';
+            const c = document.getElementById('admin-logs-list'); c.innerHTML = 'Загрузка...';
             const q = query(collection(db, "system", "logs", "items"), orderBy("timestamp", "desc"), limit(20));
-            const snaps = await getDocs(q);
-            c.innerHTML = '';
-            snaps.forEach(d => {
-                const l = d.data();
-                c.innerHTML += `<div class="admin-card"><b style="color:red">@${l.user}</b> пытался написать: "<b>${l.word}</b>"<br><small>${l.fullText}</small><br><span style="color:gray;font-size:0.7em">${new Date(l.timestamp).toLocaleString()}</span></div>`;
-            });
+            const snaps = await getDocs(q); c.innerHTML = '';
+            snaps.forEach(d => { const l = d.data(); c.innerHTML += `<div class="admin-card"><b style="color:red">@${l.user}</b> писал: "<b>${l.word}</b>"<br><small>${l.fullText}</small></div>`; });
         }
     };
 
     window.ui = {
-        toggleAuth: (mode) => { document.getElementById('login-box').classList.toggle('hidden', mode!=='login'); document.getElementById('register-box').classList.toggle('hidden', mode!=='register'); },
+        toggleAuth: (mode) => { document.getElementById('login-box').classList.toggle('hidden', mode!=='login'); document.getElementById('register-box').classList.toggle('hidden', mode!=='register'); if(mode==='register') app.generateCaptcha(); },
         showAuth: () => { document.getElementById('auth-screen').style.display='flex'; document.getElementById('app-screen').style.display='none'; },
         showApp: () => { 
             document.getElementById('auth-screen').style.display='none'; 
@@ -767,32 +813,31 @@
             else if(view==='admin') { document.getElementById('view-admin').classList.add('active'); admin.switchTab('dashboard', document.querySelector('.admin-tab-btn.active') || document.querySelector('.admin-tab-btn')); }
             else if(view==='settings') { document.getElementById('view-settings').classList.add('active'); }
         },
-        closeModals: () => {
-            document.querySelectorAll('.modal-overlay').forEach(el=>el.style.display='none');
-            if(commentsUnsub) commentsUnsub();
+        closeModals: () => { document.querySelectorAll('.modal-overlay').forEach(el=>el.style.display='none'); if(commentsUnsub) commentsUnsub(); },
+
+        togglePass: (id, btn) => {
+            const input = document.getElementById(id);
+            if(input.type === 'password') {
+                input.type = 'text';
+                btn.innerText = '🙈'; // Иконка "скрыть"
+            } else {
+                input.type = 'password';
+                btn.innerText = '👁️'; // Иконка "показать"
+            }
         },
 
         renderNotifications: async (snapshot) => {
-            const container = document.getElementById('notifs-container');
-            container.innerHTML = '';
+            const container = document.getElementById('notifs-container'); container.innerHTML = '';
             if(snapshot.empty) { container.innerHTML = '<p>Нет новых уведомлений</p>'; return; }
-
             snapshot.forEach(docSnap => {
                 const n = docSnap.data();
                 const div = document.createElement('div');
                 div.className = 'notif-item';
                 if(!n.read) div.classList.add('notif-unread');
                 let icon = '🔔';
-                if(n.type === 'like') icon = '❤️';
-                if(n.type === 'comment') icon = '💬';
-                if(n.type === 'follow') icon = '👤';
-                if(n.type === 'msg') icon = '✉️';
+                if(n.type === 'like') icon = '❤️'; else if(n.type === 'comment') icon = '💬'; else if(n.type === 'follow') icon = '👤'; else if(n.type === 'msg') icon = '✉️';
                 div.innerHTML = `<div style="font-size:1.5em; margin-right:10px;">${icon}</div><div><div class="notif-text"><b>@${n.from}</b> ${n.text}</div><div class="notif-time">${new Date(n.timestamp).toLocaleString()}</div></div>`;
-                div.onclick = async () => {
-                    await updateDoc(doc(db, "users", app.user.username, "notifications", docSnap.id), { read: true });
-                    if(n.type === 'msg') ui.navigate('chat-room', n.from);
-                    else ui.navigate('profile', n.from);
-                };
+                div.onclick = async () => { await updateDoc(doc(db, "users", app.user.username, "notifications", docSnap.id), { read: true }); if(n.type === 'msg') ui.navigate('chat-room', n.from); else ui.navigate('profile', n.from); };
                 container.appendChild(div);
             });
         },
@@ -804,23 +849,21 @@
                 container.innerHTML = '';
                 snapshot.forEach(docSnap => {
                     const post = docSnap.data();
-                    if(blocked.includes(post.author)) return; // Skip blocked
+                    if(blocked.includes(post.author)) return; 
                     const id = docSnap.id;
                     const isMine = post.author === app.user.username;
                     const likes = post.likes || [];
                     const isLiked = likes.includes(app.user.username);
-                    
                     const div = document.createElement('div');
                     div.className = 'post-card';
                     div.innerHTML = `
                         <div class="post-header" onclick="ui.navigate('profile', '${post.author}')">
                             ${getAvatarHTML(post.author, post.authorAvatar, 'avatar-small')}
-                            <span class="post-author-name">@${post.author}</span>
+                            <div><span class="post-author-name">${post.authorName || post.author}</span><span class="post-author-username">@${post.author}</span></div>
                             <span class="post-date">${new Date(post.createdAt).toLocaleDateString()}</span>
                         </div>
                         <div>${post.content}</div>
                         ${post.image ? `<img src="${post.image}" class="post-image">` : ''}
-                        
                         <div class="post-actions">
                             <div class="action-icon ${isLiked ? 'like-active' : ''}" onclick="app.toggleLike('${id}', '${post.author}')">
                                 ${isLiked ? '❤️' : '🤍'} ${likes.length}
@@ -849,14 +892,16 @@
             if (isMe) mainBtn = `<button class="action-btn" onclick="ui.openEditProfile()">Редактировать</button>`;
             else if(username === 'System') mainBtn = `<button class="action-btn btn-system">Официальный аккаунт</button>`;
             else {
-                mainBtn = `<button class="action-btn" style="background:${isFollowing?'gray':'var(--primary-color)'}" onclick="app.follow('${username}')">${isFollowing?'Отписаться':'Подписаться'}</button>`;
-                if(user.followers.includes(app.user.username) && user.following.includes(app.user.username) && !isBlocked) 
-                    mainBtn += `<button class="action-btn" style="margin-left:10px; background:#4caf50;" onclick="ui.navigate('chat-room', '${username}')">Чат</button>`;
-                mainBtn += `<br><button class="action-btn btn-danger" style="margin-top:10px; font-size:0.8em;" onclick="app.blockUser('${username}')">Заблокировать</button>`;
+                if(isBlocked) mainBtn = `<button class="action-btn" style="background:gray;" onclick="app.unblockUser('${username}')">Разблокировать</button>`;
+                else {
+                    mainBtn = `<button class="action-btn" style="background:${isFollowing?'gray':'var(--primary-color)'}" onclick="app.follow('${username}')">${isFollowing?'Отписаться':'Подписаться'}</button>`;
+                    if(user.followers.includes(app.user.username) && user.following.includes(app.user.username)) 
+                        mainBtn += `<button class="action-btn" style="margin-left:10px; background:#4caf50;" onclick="ui.navigate('chat-room', '${username}')">Чат</button>`;
+                    mainBtn += `<br><button class="action-btn btn-danger" style="margin-top:10px; font-size:0.8em;" onclick="app.blockUser('${username}')">Заблокировать</button>`;
+                }
             }
 
-            container.innerHTML = `<div class="post-card profile-header"><div style="display:flex; justify-content:center;">${getAvatarHTML(username, user.avatar, 'avatar-large')}</div><h2>@${user.username}</h2><p style="color:gray;">${user.bio||'Нет информации'}</p><div class="stats-row"><div class="stat-item" onclick="ui.openUserList('followers','${username}')"><span class="stat-num">${user.followers.length}</span><span class="stat-label">Подписчики</span></div><div class="stat-item" onclick="ui.openUserList('following','${username}')"><span class="stat-num">${user.following.length}</span><span class="stat-label">Подписки</span></div></div>${mainBtn}</div>`;
-            
+            container.innerHTML = `<div class="post-card profile-header"><div style="display:flex; justify-content:center;">${getAvatarHTML(username, user.avatar, 'avatar-large')}</div><h2>${user.name}</h2><p style="color:gray; margin-top:-10px;">@${user.username}</p><p style="color:gray;">${user.bio||'Нет информации'}</p><div class="stats-row"><div class="stat-item" onclick="ui.openUserList('followers','${username}')"><span class="stat-num">${user.followers.length}</span><span class="stat-label">Подписчики</span></div><div class="stat-item" onclick="ui.openUserList('following','${username}')"><span class="stat-num">${user.following.length}</span><span class="stat-label">Подписки</span></div></div>${mainBtn}</div>`;
             if(isBlocked) { postsContainer.innerHTML = '<p>Пользователь заблокирован вами.</p>'; return; }
 
             const postSnaps = await getDocs(query(collection(db, "posts"), where("author", "==", username), orderBy("createdAt", "desc")));
@@ -867,11 +912,10 @@
                 const likes = post.likes || [];
                 const isLiked = likes.includes(app.user.username);
                 const isMine = post.author === app.user.username;
-
                 const div = document.createElement('div');
                 div.className = 'post-card';
                 div.innerHTML = `
-                    <div class="post-header"><span class="post-author-name">@${post.author}</span><span class="post-date">${new Date(post.createdAt).toLocaleDateString()}</span></div>
+                    <div class="post-header"><span class="post-author-name">${post.authorName || post.author}</span><span class="post-date">${new Date(post.createdAt).toLocaleDateString()}</span></div>
                     <div>${post.content}</div>
                     ${post.image ? `<img src="${post.image}" class="post-image">` : ''}
                     <div class="post-actions">
@@ -886,7 +930,12 @@
             });
         },
 
-        openEditProfile: () => { document.getElementById('edit-bio').value = app.user.bio||''; document.getElementById('edit-avatar-preview').src = app.user.avatar||'https://via.placeholder.com/80'; document.getElementById('edit-profile-modal').style.display='flex'; },
+        openEditProfile: () => { 
+            document.getElementById('edit-name').value = app.user.name||app.user.username;
+            document.getElementById('edit-bio').value = app.user.bio||''; 
+            document.getElementById('edit-avatar-preview').src = app.user.avatar||'https://via.placeholder.com/80'; 
+            document.getElementById('edit-profile-modal').style.display='flex'; 
+        },
         openUserList: async (type, username) => {
             const modal = document.getElementById('user-list-modal');
             const content = document.getElementById('user-list-content');
@@ -895,8 +944,10 @@
             const list = (await getDoc(doc(db, "users", username))).data()[type];
             content.innerHTML = ''; if(list.length===0) content.innerHTML = '<p>Пусто</p>';
             for(const u of list) {
+                const usnap = await getDoc(doc(db, "users", u));
+                const uname = usnap.exists() ? usnap.data().name : u;
                 const div = document.createElement('div'); div.className = 'user-item'; div.style.display='flex'; div.style.justifyContent='space-between';
-                div.innerHTML = `<b onclick="ui.navigate('profile','${u}');ui.closeModals()">@${u}</b>`;
+                div.innerHTML = `<b onclick="ui.navigate('profile','${u}');ui.closeModals()">${uname} <small style="color:gray">@${u}</small></b>`;
                 content.appendChild(div);
             }
         },
@@ -905,22 +956,58 @@
             const container = document.getElementById('friends-list'); container.innerHTML = 'Обновление...';
             app.user = (await getDoc(doc(db, "users", app.user.username))).data();
             const blocked = app.user.blockedUsers || [];
-            let html = '';
-            for(const f of app.user.following) {
-                if(blocked.includes(f)) continue; // Don't show blocked in chats
+            const pinned = app.user.pinnedChats || [];
+            let friends = app.user.following.filter(f => !blocked.includes(f)); 
+            
+            // Фильтр: только те, кто тоже подписан (друзья)
+            let mutuals = [];
+            for (const f of friends) {
                 const fSnap = await getDoc(doc(db, "users", f));
                 if(fSnap.exists() && fSnap.data().following.includes(app.user.username)) {
-                    html += `<div class="user-item user-row" onclick="ui.navigate('chat-room','${f}')">${getAvatarHTML(f, fSnap.data().avatar, 'avatar-small')}<div><div style="font-weight:bold">@${f}</div><div style="color:var(--primary-color);font-size:0.9em">Написать</div></div></div>`;
+                    mutuals.push({id: f, data: fSnap.data()});
                 }
             }
-            container.innerHTML = html || '<div style="text-align:center;padding:20px;color:gray">Нужна взаимная подписка</div>';
+
+            mutuals.sort((a, b) => {
+                const aPinned = pinned.includes(a.id);
+                const bPinned = pinned.includes(b.id);
+                return (aPinned === bPinned) ? 0 : aPinned ? -1 : 1;
+            });
+
+            container.innerHTML = '';
+            if(mutuals.length === 0) { container.innerHTML = '<p style="text-align:center">Нет диалогов. Подпишитесь друг на друга.</p>'; return; }
+
+            for(const m of mutuals) {
+                // Fetch last message (slow but requested)
+                const chatId = [app.user.username, m.id].sort().join('_');
+                const lastMsgQ = query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "desc"), limit(1));
+                const lastMsgSnap = await getDocs(lastMsgQ);
+                let lastText = "Написать сообщение";
+                if(!lastMsgSnap.empty) {
+                    const lm = lastMsgSnap.docs[0].data();
+                    lastText = (lm.sender===app.user.username ? 'Вы: ' : '') + lm.text;
+                    if(lastText.length > 25) lastText = lastText.substring(0,25) + '...';
+                }
+
+                const isPinned = pinned.includes(m.id);
+                const div = document.createElement('div');
+                div.className = `user-item user-row ${isPinned ? 'pinned-chat' : ''}`;
+                div.innerHTML = `
+                    ${getAvatarHTML(m.id, m.data.avatar, 'avatar-small')}
+                    <div style="flex:1" onclick="ui.navigate('chat-room','${m.id}')">
+                        <div style="font-weight:bold">${m.data.name} ${isPinned?'📌':''}</div>
+                        <div style="color:gray;font-size:0.8em">${lastText}</div>
+                    </div>
+                    <div style="font-size:1.2em; padding:10px; cursor:pointer;" onclick="app.togglePin('${m.id}')">
+                        ${isPinned ? '✖️' : '📌'}
+                    </div>
+                `;
+                container.appendChild(div);
+            }
         },
 
         renderChatRoom: (partner) => {
-            const nameEl = document.getElementById('chat-with-name');
-            nameEl.innerText = '@'+partner;
-            nameEl.onclick = () => ui.navigate('profile', partner); // Click to profile
-
+            document.getElementById('chat-with-name').innerHTML = partner + ` <small onclick="ui.navigate('profile', '${partner}')" style="color:var(--primary-color)">(@профиль)</small>`;
             const container = document.getElementById('messages-container');
             const chatId = [app.user.username, partner].sort().join('_');
             activeChatUnsub = onSnapshot(query(collection(db, "chats", chatId, "messages"), orderBy("timestamp", "asc")), (snap) => {
@@ -929,7 +1016,7 @@
                     const m = d.data();
                     const div = document.createElement('div');
                     div.className = `message-bubble ${m.sender===app.user.username?'msg-own':'msg-other'}`;
-                    if(m.sender === 'System') div.style.border = '2px solid red'; // Highlight System msgs
+                    if(m.sender === 'System') div.style.border = '2px solid red'; 
                     div.innerHTML = `<span>${m.text}</span>${m.sender===app.user.username?`<span class="msg-delete" onclick="app.deleteMessage('${d.id}')">удалить</span>`:''}`;
                     container.appendChild(div);
                 });
