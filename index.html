@@ -52,14 +52,15 @@
 
         input, textarea, select { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid var(--border-color); border-radius: 10px; background: var(--input-bg); color: var(--text-color); box-sizing: border-box; font-family: inherit; font-size: 16px; outline: none;}
 
-        /* FAB (Floating Action Button) */
+        /* FAB */
         .fab { position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; transition: transform 0.2s; }
         .fab:active { transform: scale(0.9); }
         @media (min-width: 769px) { .fab { bottom: 40px; right: 40px; } }
 
         /* Splash */
         #splash { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999; display:flex; justify-content:center; align-items:center; flex-direction:column; }
-        .splash-logo { font-size: 3em; font-weight: 900; color:var(--primary-color); }
+        .splash-logo { font-size: 3em; font-weight: 900; color:var(--primary-color); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* Auth */
         #auth-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:2000; display:flex; justify-content:center; align-items:center; }
@@ -360,6 +361,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+// FIXED: Variable name changed to avoid conflict
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -370,10 +372,9 @@ const firebaseConfig = {
     measurementId: "G-4Z2SMZS5N4"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
 
-// SVGs
 const ICONS = {
     like: '<svg class="icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
     comment: '<svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -383,7 +384,6 @@ const ICONS = {
     lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
 };
 
-// State
 let currentUser = null;
 let listeners = {};
 let tempImg = null;
@@ -392,8 +392,8 @@ let curChat = null;
 let curPost = null;
 let captchaAns = 0;
 let lastPostTime = 0;
+let activeChatUnsub = null;
 
-// Utils
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
     r.onload = e => {
@@ -411,19 +411,23 @@ const getAv = (u, sz) => `<img src="${u.avatar||'https://via.placeholder.com/80'
 
 window.ui = {
     nav: (v, p) => {
+        if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
-        document.getElementById('view-'+(v==='admin'?'admin':v)).classList.add('active');
+        const el = document.getElementById('view-'+(v==='admin'?'admin':v));
+        if(el) el.classList.add('active');
         
-        // Highlight logic
         const map = {'feed':0, 'search':1, 'groups':2, 'chats':3, 'notifs':4, 'profile':5, 'admin':6, 'settings':7};
         if(map[v]!==undefined) document.querySelectorAll('.nav-item')[map[v]].classList.add('active');
+        if(v==='chat-room') document.getElementById('view-chat-room').style.display = 'flex';
+        else document.getElementById('view-chat-room').style.display = 'none';
         
         if(v==='feed') app.loadFeed();
         if(v==='chats') app.loadChats();
         if(v==='groups') app.loadGroups();
         if(v==='notifs') app.listenNotifs();
         if(v==='profile') app.loadProfile(p);
+        if(v==='chat-room') app.loadChatRoom(p);
         if(v==='admin') admin.tab('users');
     },
     toggleAuth: m => {
@@ -455,24 +459,40 @@ window.app = {
             document.documentElement.setAttribute('data-theme', 'dark');
             document.getElementById('theme-switch').checked = true;
         }
-        setTimeout(async () => {
+        
+        // Initial Loading Logic with SAFETY FINALLY
+        try {
             const u = localStorage.getItem('user');
             if(u) {
-                try {
-                    const s = await getDoc(doc(db, 'users', u));
-                    if(s.exists()) {
-                        currentUser = s.data();
-                        if(currentUser.isBanned) return localStorage.clear() || location.reload();
-                        document.getElementById('auth-screen').style.display='none';
-                        document.getElementById('app-screen').style.display='block';
-                        if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
-                        ui.nav('feed');
-                        app.checkAchievs();
-                    } else ui.toggleAuth('login');
-                } catch(e){ ui.toggleAuth('login'); }
-            } else ui.toggleAuth('login');
-            document.getElementById('splash').style.display='none';
-        }, 1000);
+                const s = await getDoc(doc(db, 'users', u));
+                if(s.exists()) {
+                    currentUser = s.data();
+                    // Safety check for old accounts
+                    currentUser.blocked = currentUser.blocked || [];
+                    currentUser.requests = currentUser.requests || [];
+                    currentUser.groups = currentUser.groups || [];
+                    currentUser.unlocked = currentUser.unlocked || [];
+                    
+                    if(currentUser.isBanned) throw new Error('Banned');
+                    
+                    document.getElementById('auth-screen').style.display='none';
+                    document.getElementById('app-screen').style.display='block';
+                    if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
+                    ui.nav('feed');
+                    app.checkAchievs();
+                } else throw new Error('No User');
+            } else throw new Error('No Local User');
+        } catch(e) {
+            console.log(e);
+            if(e.message === 'Banned') alert('Бан');
+            localStorage.clear();
+            ui.toggleAuth('login');
+        } finally {
+            // ALWAYS HIDE SPLASH
+            setTimeout(() => {
+                 document.getElementById('splash').style.display='none';
+            }, 500);
+        }
     },
 
     genCaptcha: () => {
@@ -518,7 +538,6 @@ window.app = {
     },
     logout: () => { localStorage.clear(); location.reload(); },
 
-    // --- Core Features ---
     createPost: async () => {
         if(Date.now()-lastPostTime < 5000) return alert('Не спеши!');
         const txt = document.getElementById('post-text').value.trim();
@@ -555,40 +574,30 @@ window.app = {
     loadFeed: async () => {
         const c = document.getElementById('feed-content'); c.innerHTML = '';
         
-        // 1. Get Top Post of Day
         const yesterday = Date.now() - 86400000;
-        const qTop = query(collection(db, 'posts'), where('createdAt', '>', yesterday), orderBy('createdAt', 'desc')); // client-side sort for likes later
+        const qTop = query(collection(db, 'posts'), where('createdAt', '>', yesterday), orderBy('createdAt', 'desc')); 
         const snaps = await getDocs(qTop);
         let topPost = null;
         let maxLikes = -1;
         
-        const posts = [];
         snaps.forEach(d => {
             const p = d.data(); p.id = d.id;
-            if(p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; }
-            posts.push(p);
+            if(p.likes && p.likes.length > maxLikes) { maxLikes = p.likes.length; topPost = p; }
         });
 
-        // Render Top Post
         if(topPost && maxLikes > 0) {
             c.innerHTML += app.renderPost(topPost, true);
         }
 
-        // Render Feed (Subs + Recommendations)
-        // Note: Firestore logic simplified. We show all posts but client-side filter blocked.
-        // For recommendations: show random posts from non-followed.
-        
         if(listeners.feed) listeners.feed();
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
         listeners.feed = onSnapshot(q, s => {
-            // Clear but keep top post if exists
             const topHtml = topPost && maxLikes > 0 ? app.renderPost(topPost, true) : '';
             let html = topHtml;
-            
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
                 if(currentUser.blocked.includes(p.author)) return;
-                if(topPost && p.id === topPost.id) return; // Don't duplicate
+                if(topPost && p.id === topPost.id) return;
                 html += app.renderPost(p);
             });
             c.innerHTML = html;
@@ -596,7 +605,8 @@ window.app = {
     },
 
     renderPost: (p, isTop=false) => {
-        const isLiked = p.likes.includes(currentUser.username);
+        const likes = p.likes || [];
+        const isLiked = likes.includes(currentUser.username);
         const isMine = p.author === currentUser.username;
         return `
         <div class="card ${isTop?'top-post-banner':''}">
@@ -615,7 +625,7 @@ window.app = {
             ${p.image ? `<img src="${p.image}" class="post-img">` : ''}
             <div class="post-actions">
                 <div class="act-btn ${isLiked?'liked':''}" onclick="app.like('${p.id}', '${p.author}')">
-                    ${ICONS.like} ${p.likes.length}
+                    ${ICONS.like} ${likes.length}
                 </div>
                 <div class="act-btn" onclick="app.openComs('${p.id}', '${p.author}')">
                     ${ICONS.comment}
@@ -628,19 +638,17 @@ window.app = {
         </div>`;
     },
 
-    // --- Profile & Groups ---
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         c.innerHTML = 'Загрузка...';
         const s = await getDoc(doc(db, 'users', u));
         
-        if(s.exists()) { // User Profile
+        if(s.exists()) { 
             const user = s.data();
             const isMe = u === currentUser.username;
             const isFollow = currentUser.following.includes(u);
             const isClosed = user.isPrivate && !isMe && !isFollow;
             
-            // Render Header
             let btn = '';
             if(isMe) btn = `<button class="action-btn" onclick="ui.nav('settings')">Редактировать</button>`;
             else {
@@ -671,14 +679,12 @@ window.app = {
             if(isClosed) {
                 pc.innerHTML = `<div style="text-align:center; padding:20px; color:gray">${ICONS.lock}<br>Это закрытый аккаунт</div>`;
             } else {
-                // Load Posts
                 const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 pc.innerHTML = '';
                 ps.forEach(d => pc.innerHTML += app.renderPost({...d.data(), id:d.id}));
             }
         } else {
-            // Maybe it's a Group?
             const g = await getDoc(doc(db, 'groups', u));
             if(g.exists()) {
                 const group = g.data();
@@ -694,7 +700,6 @@ window.app = {
                         ${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}
                     </div>
                 `;
-                // Posts
                  const q = query(collection(db, 'posts'), where('author', '==', u), orderBy('createdAt', 'desc'));
                 const ps = await getDocs(q);
                 const pc = document.getElementById('profile-posts');
@@ -738,6 +743,57 @@ window.app = {
         else await updateDoc(ref, { members: arrayRemove(currentUser.username) });
         ui.nav('profile', gid);
     },
+    
+    // --- Chats ---
+    loadChats: async () => {
+        const c = document.getElementById('chats-list'); c.innerHTML='Обновление...';
+        const friends = currentUser.following; 
+        c.innerHTML = '';
+        if(friends.length===0) c.innerHTML='<p>Подпишитесь на кого-нибудь</p>';
+        
+        for(const f of friends) {
+             const u = await getDoc(doc(db, 'users', f));
+             if(!u.exists()) continue;
+             const ud = u.data();
+             
+             // Check if mutual (optional, but good for privacy)
+             if(ud.following.includes(currentUser.username)) {
+                 c.innerHTML += `<div class="card user-row" onclick="ui.nav('chat-room','${f}')">
+                     ${getAv(ud, 'av-40')} <b>${ud.name}</b>
+                 </div>`;
+             }
+        }
+    },
+    
+    loadChatRoom: async (partner) => {
+        document.getElementById('chat-title').innerText = partner;
+        curChat = partner;
+        const chatId = [currentUser.username, partner].sort().join('_');
+        const c = document.getElementById('msg-container');
+        
+        if(activeChatUnsub) activeChatUnsub();
+        
+        const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('time', 'asc'), limit(50));
+        activeChatUnsub = onSnapshot(q, s => {
+            c.innerHTML = '';
+            s.forEach(d => {
+                const m = d.data();
+                const isMe = m.from === currentUser.username;
+                c.innerHTML += `<div class="msg ${isMe?'me':'other'}">${m.text}</div>`;
+            });
+            c.scrollTop = c.scrollHeight;
+        });
+    },
+    
+    sendMsg: async () => {
+        const txt = document.getElementById('msg-input').value.trim();
+        if(!txt || !curChat) return;
+        const chatId = [currentUser.username, curChat].sort().join('_');
+        await addDoc(collection(db, 'chats', chatId, 'messages'), {
+            from: currentUser.username, text: txt, time: Date.now()
+        });
+        document.getElementById('msg-input').value = '';
+    },
 
     // --- Actions ---
     like: async (pid, auth) => {
@@ -776,6 +832,31 @@ window.app = {
         app.notify(u, 'msg', 'принял вашу заявку');
         app.listenNotifs();
     },
+    
+    // Comments
+    openComs: (pid, auth) => {
+        curPost = pid;
+        document.getElementById('comments-modal').style.display='flex';
+        const list = document.getElementById('comments-list');
+        // Simple Realtime Listener for comments
+        const q = query(collection(db, 'posts', pid, 'comments'), orderBy('time', 'asc'));
+        onSnapshot(q, s => {
+            list.innerHTML='';
+            s.forEach(d => {
+                const c = d.data();
+                list.innerHTML += `<div style="background:#f0f0f0; padding:10px; border-radius:10px; margin-bottom:5px;"><b>${c.author}</b>: ${c.text}</div>`;
+            });
+        });
+    },
+    sendComment: async () => {
+        const t = document.getElementById('comment-input').value;
+        if(!t) return;
+        await addDoc(collection(db, 'posts', curPost, 'comments'), {
+            author: currentUser.username, text: t, time: Date.now()
+        });
+        document.getElementById('comment-input').value='';
+    },
+    delPost: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',id)); },
 
     // --- Misc ---
     handleImg: el => { if(el.files[0]) compress(el.files[0], d=>{ tempImg=d; document.getElementById('preview-img-el').src=d; document.getElementById('post-img-preview').classList.remove('hidden'); }) },
@@ -795,9 +876,14 @@ window.app = {
         const v = document.getElementById('private-switch').checked;
         await updateDoc(doc(db, 'users', currentUser.username), { isPrivate: v });
     },
+    changePass: async () => {
+        const p = document.getElementById('ch-pass').value;
+        if(!p) return;
+        await updateDoc(doc(db, 'users', currentUser.username), { password: p });
+        alert('Пароль изменен');
+    },
     
     checkAchievs: async () => {
-        // Simple logic for statuses
         const u = currentUser;
         const unlocked = u.unlocked || [];
         const posts = (await getDocs(query(collection(db,'posts'), where('author','==',u.username)))).size;
@@ -809,7 +895,6 @@ window.app = {
         }
         if(ch) await updateDoc(doc(db, 'users', u.username), { unlocked });
         
-        // Fill select
         const sel = document.getElementById('edit-status');
         sel.innerHTML = '<option value="">Нет</option>';
         unlocked.forEach(s => sel.innerHTML += `<option>${s}</option>`);
@@ -849,10 +934,19 @@ window.app = {
                 });
             }
         });
+    },
+    
+    reqVerify: async () => {
+        await addDoc(collection(db,'system','verifications','requests'), {
+            username: currentUser.username,
+            realname: document.getElementById('v-real').value,
+            reason: document.getElementById('v-reason').value,
+            status: 'pending'
+        });
+        alert('Заявка отправлена'); ui.closeModals();
     }
 };
 
-// Admin
 window.admin = {
     tab: t => {
         document.getElementById('adm-content').innerHTML = t === 'users' ? '<input oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>' : 'Загрузка...';
