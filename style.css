@@ -181,3 +181,16 @@ input, textarea, select { width: 100%; padding: 12px; margin: 5px 0; border: 1px
     #view-chat-room { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 200; padding: 0; display: none; flex-direction: column; }
     .fab { bottom: 70px; }
 }
+/* --- ФИКС ГАЛОЧЕК В НАСТРОЙКАХ --- */
+input[type="checkbox"] {
+    width: 20px !important; /* Фиксируем размер галочки */
+    height: 20px !important;
+    margin: 0 !important;
+    cursor: pointer;
+}
+
+label.user-row {
+    justify-content: flex-start; /* Прижимаем всё влево */
+    gap: 15px; /* Отступ между галочкой и текстом */
+    cursor: pointer;
+}
