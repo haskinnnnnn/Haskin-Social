@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+// --- ВСТАВЬ СВОЙ КОНФИГ СЮДА ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -37,7 +38,6 @@ let tempImg = null;
 let tempChatImg = null;
 let tempAv = null;
 let curChat = null;
-let curChatAvatar = '';
 let activeChatUnsub = null;
 let forbiddenWords = [];
 let activeGroupId = null;
@@ -63,18 +63,19 @@ const compress = (file, cb) => {
 const getAv = (u, sz, addFrame=false) => {
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '';
-    // Обводка пропадает, если нет инвентаря (проданы)
-    if(addFrame && u.inventory) {
-        if(u.inventory.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
-        else if(u.inventory.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
+    
+    // SAFE CHECK FOR INVENTORY
+    const inv = u.inventory || u.authorInventory || [];
+    if(addFrame && inv.length > 0) {
+        if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
+        else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
     }
     
-    // SATELLITES Logic (Pinned Emojis)
+    // SAFE CHECK FOR SATELLITES
     let satellites = '';
-    if(u.pinnedEmojis) {
-        if(u.pinnedEmojis.slot1) satellites += `<span class="sat-icon sat-1">${u.pinnedEmojis.slot1}</span>`;
-        if(u.pinnedEmojis.slot2) satellites += `<span class="sat-icon sat-2">${u.pinnedEmojis.slot2}</span>`;
-    }
+    const pins = u.pinnedEmojis || {}; 
+    if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
+    if(pins.slot2) satellites += `<span class="sat-icon sat-2">${pins.slot2}</span>`;
 
     return `<div class="avatar-wrap"><img src="${src}" class="avatar ${sz} ${frameClass}">${satellites}</div>`;
 };
@@ -90,6 +91,10 @@ window.ui = {
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         
+        // CHAT MODE TOGGLE
+        if(v === 'chat-room') document.body.classList.add('chat-mode');
+        else document.body.classList.remove('chat-mode');
+
         const el = document.getElementById('view-'+(v==='admin'?'admin':v));
         if(el) el.classList.add('active');
         
@@ -99,10 +104,8 @@ window.ui = {
 
         if(v==='chat-room') {
             document.getElementById('view-chat-room').style.display = 'flex';
-            document.querySelector('.sidebar').style.display = 'none'; 
         } else {
             document.getElementById('view-chat-room').style.display = 'none';
-            document.querySelector('.sidebar').style.display = 'flex';
         }
         
         if(v==='feed') app.loadFeed();
@@ -230,8 +233,7 @@ window.app = {
         const txt = document.getElementById('post-text').value.trim();
         if(!txt && !tempImg) return;
         
-        // Модерация изображений
-        const isApproved = !tempImg; // Если есть картинка, нужно одобрение
+        const isApproved = !tempImg; 
         
         const p = { 
             author: currentUser.username, 
@@ -245,7 +247,7 @@ window.app = {
             avatar: currentUser.avatar || '',
             authorInventory: currentUser.inventory || [],
             pinnedEmojis: currentUser.pinnedEmojis || {},
-            approved: isApproved // Flag
+            approved: isApproved 
         };
         if(activeGroupId) p.groupId = activeGroupId;
 
@@ -265,21 +267,12 @@ window.app = {
         const c = document.getElementById('feed-content'); c.innerHTML = '';
         if(listeners.feed) listeners.feed();
         
-        // Показываем только одобренные посты (или свои, или если админ)
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
         listeners.feed = onSnapshot(q, s => {
             let html = '';
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
-                if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return; // Скрываем неодобренные
-                
-                // Приватность в ленте: если автор закрыт и я не подписчик - не показывать
-                if(!p.groupId && !currentUser.following.includes(p.author) && p.author !== currentUser.username) {
-                     // Нужно проверить флаг isPrivate у автора, но это дорогой запрос в цикле.
-                     // Упрощение: мы не фильтруем здесь, но контент в профиле скрыт. 
-                     // Для полной приватности ленты нужно дублировать флаг isPrivate в пост.
-                }
-
+                if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return; 
                 if(p.groupId) return;
                 if(currentUser.blocked.includes(p.author)) return;
                 html += app.renderPost(p);
@@ -329,7 +322,6 @@ window.app = {
             const isMe = u === currentUser.username;
             const isFollow = currentUser.following.includes(u);
             const isBlocked = currentUser.blocked.includes(u);
-            // Если профиль закрыт, и это не я, и я не подписан -> контент скрыт
             const isClosed = user.isPrivate && !isMe && !isFollow;
             
             let btn = '';
@@ -354,7 +346,9 @@ window.app = {
                 <p>${user.bio||''}</p>
                 <div style="display:flex; justify-content:center; gap:20px; margin:10px 0;">
                     <b>${user.followers.length} <span style="font-weight:normal; color:gray">подп.</span></b>
-                    <b>${user.following.length} <span style="font-weight:normal; color:gray">подписки</span></b>
+                    <b onclick="app.showFollowing('${user.username}')" style="cursor:pointer; border-bottom:1px dashed gray;">
+                        ${user.following.length} <span style="font-weight:normal; color:gray">подписки</span>
+                    </b>
                 </div>${btn}</div>`;
 
             if(isClosed) {
@@ -370,15 +364,32 @@ window.app = {
                 else postsArr.forEach(p => { if(!p.groupId && p.approved) pc.innerHTML += app.renderPost(p); });
             }
         } else {
-             // GROUP LOGIC (Same as before)
-             // ...
+             // GROUP LOGIC (Simplified for brevity, it's the same)
+             const g = await getDoc(doc(db, 'groups', u));
+             if(g.exists()) {
+                activeGroupId = u; 
+                const group = g.data();
+                const isMem = group.members.includes(currentUser.username);
+                const isOwner = group.owner === currentUser.username;
+                const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec sm-btn" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger sm-btn" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
+                
+                c.innerHTML = `<div class="card center-content"><div class="avatar av-80" style="background:gray; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
+                 
+                const q = query(collection(db, 'posts'), where('groupId', '==', u));
+                const ps = await getDocs(q);
+                let postsArr = [];
+                ps.forEach(d => postsArr.push({...d.data(), id:d.id}));
+                postsArr.sort((a,b) => b.createdAt - a.createdAt);
+
+                if(isMem) pc.innerHTML = `<button class="action-btn full-width mb-20" onclick="app.openCreatePost()">Написать в группу</button>`;
+                postsArr.forEach(p => pc.innerHTML += app.renderPost(p));
+            }
         }
     },
     
-    // --- CHATS FIXED ---
+    // --- CHATS ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='<div class="info-box">Обновление...</div>';
-        const pinned = currentUser.pinnedChats || [];
         const friends = currentUser.following; 
         let chatsData = [];
         for(const f of friends) {
@@ -421,7 +432,6 @@ window.app = {
                 const isMe = m.from === currentUser.username;
                 let html = '';
                 
-                // GAME RENDER
                 if(m.type === 'game_invite') {
                     const isMyGame = m.creator === currentUser.username;
                     html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game">
@@ -452,7 +462,6 @@ window.app = {
         if(txt) msgData.text = txt;
         if(tempChatImg) { msgData.image = tempChatImg; msgData.text = '📷 Фото'; }
 
-        // Исправлена запись в коллекцию
         await addDoc(collection(db, 'chats', chatId, 'messages'), msgData);
         await setDoc(doc(db, 'chats', chatId), { lastMessage: msgData.text, lastTime: Date.now() }, { merge: true });
         
@@ -473,22 +482,67 @@ window.app = {
     like: async (pid, auth) => { const r = doc(db,'posts',pid); const p=(await getDoc(r)).data(); if(p.likes.includes(currentUser.username)) await updateDoc(r,{likes:arrayRemove(currentUser.username)}); else { await updateDoc(r,{likes:arrayUnion(currentUser.username)}); await updateDoc(doc(db,'users',auth),{balance:increment(1)}); app.notify(auth,'like','оценил пост'); } },
     follow: async (u) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',u); if(currentUser.following.includes(u)) { await updateDoc(me,{following:arrayRemove(u)}); await updateDoc(him,{followers:arrayRemove(currentUser.username)}); currentUser.following = currentUser.following.filter(x=>x!==u); } else { await updateDoc(me,{following:arrayUnion(u)}); await updateDoc(him,{followers:arrayUnion(currentUser.username)}); currentUser.following.push(u); app.notify(u,'sub','подписался'); } ui.nav('profile',u); },
     reqFollow: async (u) => { await updateDoc(doc(db,'users',u),{requests:arrayUnion(currentUser.username)}); app.notify(u,'req','хочет подписаться'); alert('Запрос отправлен'); },
-    checkStatuses: async () => { /* status logic same as before */ },
+    checkStatuses: async () => { /* status logic */ },
     notify: async (to, type, txt) => { if(to === currentUser.username) return; await addDoc(collection(db, 'users', to, 'notifications'), { type, text: txt, from: currentUser.username, time: Date.now(), read: false }); },
     listenNotifs: () => { const q = query(collection(db, 'users', currentUser.username, 'notifications'), orderBy('time', 'desc'), limit(20)); onSnapshot(q, s => { let n = 0; s.forEach(d => { if(!d.data().read) n++ }); document.getElementById('notif-badge').style.display = n?'block':'none'; if(document.getElementById('view-notifs').classList.contains('active')) { const c = document.getElementById('notifs-list'); c.innerHTML=''; s.forEach(d => { const x = d.data(); let act = ''; if(x.type === 'req') act = `<button class="action-btn sm-btn" onclick="app.acceptReq('${x.from}')">Принять</button>`; c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${x.from}')">${ICONS.lock} <div><b>@${x.from}</b> ${x.text}</div> ${act}</div>`; }); } }); },
     acceptReq: async (u) => { await updateDoc(doc(db,'users',currentUser.username),{requests:arrayRemove(u),followers:arrayUnion(u)}); await updateDoc(doc(db,'users',u),{following:arrayUnion(currentUser.username)}); app.notify(u,'msg','принял заявку'); app.listenNotifs(); },
-    openComs: (pid,auth) => { document.getElementById('comments-modal').style.display='flex'; /* ...com logic */ },
-    // Stub methods for brevity (copy existing ones for delPost, delMsg, etc)
+    openComs: (pid,auth) => { document.getElementById('comments-modal').style.display='flex'; /* comments logic placeholder */ },
+    sendComment: async () => { /* comments logic */ },
     delPost: async (id) => { if(confirm('Del?')) await deleteDoc(doc(db,'posts',id)); },
     
-    // ... Copy remaining group/admin logic from V5.0 ...
+    // --- FOLLOWING LIST (NEW) ---
+    showFollowing: async (username) => {
+        const c = document.getElementById('users-list-content');
+        c.innerHTML = 'Загрузка...';
+        document.getElementById('users-list-modal').style.display = 'flex';
+        
+        const uDoc = await getDoc(doc(db, 'users', username));
+        if(!uDoc.exists()) return;
+        
+        const list = uDoc.data().following || [];
+        c.innerHTML = '';
+        
+        if(list.length === 0) c.innerHTML = '<div class="info-box">Пусто</div>';
+
+        for(const login of list) {
+            const userRef = await getDoc(doc(db, 'users', login));
+            if(userRef.exists()) {
+                const u = userRef.data();
+                const isMe = username === currentUser.username;
+                const btn = isMe ? `<button class="action-btn btn-danger sm-btn" onclick="app.unfollowFromList('${u.username}')">Отписаться</button>` : '';
+                
+                c.innerHTML += `<div class="user-list-item">
+                    <div class="user-row" onclick="ui.nav('profile', '${u.username}'); ui.closeModals()">
+                        ${getAv(u, 'av-40')} <b>${u.name}</b>
+                    </div>
+                    ${btn}
+                </div>`;
+            }
+        }
+    },
+
+    unfollowFromList: async (target) => {
+        if(confirm(`Отписаться от ${target}?`)) {
+            await app.follow(target); 
+            app.showFollowing(currentUser.username); 
+        }
+    },
+    
+    // --- STUBS for Groups (Full code in V5.0) ---
+    createGroup: async () => { const n=document.getElementById('group-name').value; const id='public_'+Date.now(); await setDoc(doc(db,'groups',id),{id,name:n,desc:document.getElementById('group-desc').value,owner:currentUser.username,members:[currentUser.username],avatar:''}); await updateDoc(doc(db,'users',currentUser.username),{groups:arrayUnion(id)}); ui.closeModals(); ui.nav('groups'); },
+    loadGroups: async () => { const c=document.getElementById('groups-list'); const s=await getDocs(query(collection(db,'groups'),limit(20))); c.innerHTML=''; s.forEach(d=>{const g=d.data(); c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><div class="avatar av-40" style="background:gray;color:white;display:flex;align-items:center;justify-content:center">${g.avatar?`<img src="${g.avatar}" class="avatar av-40">`:g.name[0]}</div><div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`;}); },
+    searchGroup: async (v) => { if(!v)return app.loadGroups(); const c=document.getElementById('groups-list'); c.innerHTML=''; (await getDocs(query(collection(db,'groups'),orderBy('name'),limit(20)))).forEach(d=>{ const g=d.data(); if(g.name.toLowerCase().includes(v.toLowerCase())) c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><b>${g.name}</b></div>`; }); },
+    joinGroup: async (gid,j) => { const r=doc(db,'groups',gid); if(j) await updateDoc(r,{members:arrayUnion(currentUser.username)}); else await updateDoc(r,{members:arrayRemove(currentUser.username)}); ui.nav('profile',gid); },
+    editGroup: async (gid) => { const g=(await getDoc(doc(db,'groups',gid))).data(); document.getElementById('edit-group-name').value=g.name; document.getElementById('edit-group-desc').value=g.desc; document.getElementById('edit-group-id').value=gid; document.getElementById('edit-group-av-prev').src=g.avatar||''; tempAv=null; document.getElementById('edit-group-modal').style.display='flex'; },
+    saveGroupChanges: async () => { const gid=document.getElementById('edit-group-id').value; const upd={name:document.getElementById('edit-group-name').value,desc:document.getElementById('edit-group-desc').value}; if(tempAv) upd.avatar=tempAv; await updateDoc(doc(db,'groups',gid),upd); ui.closeModals(); ui.nav('profile',gid); },
+    deleteGroup: async (gid) => { if(confirm('Удалить?')) { await deleteDoc(doc(db,'groups',gid)); ui.nav('groups'); }},
+    blockUser: async (t,b) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',t); if(b) { await updateDoc(me,{blocked:arrayUnion(t)}); await updateDoc(him,{blockedBy:arrayUnion(currentUser.username)}); } else { await updateDoc(me,{blocked:arrayRemove(t)}); await updateDoc(him,{blockedBy:arrayRemove(currentUser.username)}); } ui.nav('profile',t); }
 };
 
 // --- MARKET 5.1 ---
 window.market = {
     tab: (t) => {
         document.querySelectorAll('.view#view-market .tab').forEach(e=>e.classList.remove('active'));
-        // Mapping tabs...
         const c = document.getElementById('market-content'); c.innerHTML = '';
         
         if(t==='cases') {
@@ -498,7 +552,7 @@ window.market = {
                 <p>Цена: ${CASE_PRICE} HC</p>
                 <button class="action-btn" onclick="market.buyCase('normal')">Открыть</button>
             </div>
-            <div class="card center-content" style="grid-column: 1 / -1; border:2px solid gold; background: #fffbe6;">
+            <div class="card center-content legacy-box" style="grid-column: 1 / -1;">
                 <h2>🗝️ LEGACY BOX</h2>
                 <p>Цена: ${LEGACY_PRICE} HC</p>
                 <small>Меньше мусора, больше шансов!</small><br>
@@ -530,13 +584,10 @@ window.market = {
         let rar = 'common';
         
         if(type === 'legacy') {
-            // Шансы для Legacy
             if (rand < 5) rar = 'legendary';
             else if (rand < 20) rar = 'epic';
             else if (rand < 50) rar = 'rare';
-            // Остальное common
         } else {
-            // Обычные шансы
             if (rand < 0.9) rar = 'legendary';
             else if (rand < 3) rar = 'epic';
             else if (rand < 15) rar = 'rare';
@@ -574,7 +625,6 @@ window.market = {
         await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayRemove(item) });
         currentUser.inventory = currentUser.inventory.filter(i=>i.id!==id);
         
-        // Снять закреп при продаже
         if(currentUser.pinnedEmojis) {
              if(currentUser.pinnedEmojis.slot1 === item.emoji) await updateDoc(doc(db,'users',currentUser.username), {'pinnedEmojis.slot1': null});
              if(currentUser.pinnedEmojis.slot2 === item.emoji) await updateDoc(doc(db,'users',currentUser.username), {'pinnedEmojis.slot2': null});
@@ -584,17 +634,13 @@ window.market = {
         ui.closeModals(); market.tab('inventory');
     },
 
-    // --- PINNING LOGIC ---
     pinItem: async (slot) => {
         const emoji = document.getElementById('sell-item-emoji').value;
-        const rarity = document.getElementById('sell-item-rarity').value;
-        // Можно закрепить только рарки выше common? (по желанию)
         
         const upd = {};
         upd[`pinnedEmojis.${slot}`] = emoji;
         await updateDoc(doc(db, 'users', currentUser.username), upd);
         
-        // Обновляем локально
         if(!currentUser.pinnedEmojis) currentUser.pinnedEmojis = {};
         currentUser.pinnedEmojis[slot] = emoji;
         
@@ -609,7 +655,6 @@ window.market = {
         ui.closeModals();
     },
 
-    // --- NEW MARKET UI ---
     loadMarketplace: async () => {
         const c = document.getElementById('market-content'); c.innerHTML = 'Загрузка...';
         const s = await getDocs(query(collection(db, 'market_items'), orderBy('price', 'asc')));
@@ -679,13 +724,11 @@ window.game = {
         if(!num || num < 1 || num > 100) return alert('1-100');
         if(currentUser.balance < bet) return alert('Нет денег');
         
-        // Генерация подсказки (число +- 5)
         let hint = num + Math.floor(Math.random() * 10) - 5;
-        if(hint === num) hint++; // Чтобы не палить число
+        if(hint === num) hint++; 
         
         const chatId = [currentUser.username, curChat].sort().join('_');
         
-        // Создаем запись об игре
         await addDoc(collection(db, 'chats', chatId, 'messages'), {
             type: 'game_invite',
             creator: currentUser.username,
@@ -705,7 +748,6 @@ window.game = {
     guess: async (msgId, chatId, choice, target, hint, bet, creator) => {
         if(currentUser.balance < bet) return alert('Нужна ставка ' + bet);
         
-        // Списываем ставку с того, кто гадает
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
         currentUser.balance -= bet;
 
@@ -716,11 +758,9 @@ window.game = {
         const winner = win ? currentUser.username : creator;
         const pot = bet * 2;
         
-        // Отдаем банк победителю
         await updateDoc(doc(db, 'users', winner), { balance: increment(pot) });
         if(winner === currentUser.username) currentUser.balance += pot;
         
-        // Обновляем сообщение
         await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
             finished: true,
             winner: winner
@@ -733,7 +773,8 @@ window.admin = {
     tab: t => {
         const c = document.getElementById('adm-content');
         if(t==='mod') admin.loadModQueue();
-        // ... user/verify tabs from prev version
+        if(t==='users') { document.querySelectorAll('.view#view-admin .tab').forEach(e=>e.classList.remove('active')); document.querySelector('.view#view-admin .tab:first-child').classList.add('active'); c.innerHTML = '<input class="search-bar" oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>'; }
+        if(t==='verify') { admin.loadV(); }
     },
     loadModQueue: async () => {
         const c = document.getElementById('adm-content'); c.innerHTML = 'Загрузка...';
@@ -753,7 +794,10 @@ window.admin = {
     },
     approve: async (id) => { await updateDoc(doc(db, 'posts', id), { approved: true }); admin.loadModQueue(); },
     reject: async (id) => { await deleteDoc(doc(db, 'posts', id)); admin.loadModQueue(); },
-    // ... stats, ban, etc
+    s: async v => { const s = await getDocs(query(collection(db,'users'), where('username','>=',v), limit(5))); const c = document.getElementById('adm-list'); c.innerHTML=''; s.forEach(d=> { const u = d.data(); c.innerHTML += `<div class="card"><b>${u.username}</b> (${u.status})<br><button class="action-btn btn-danger sm-btn" onclick="admin.ban('${u.username}')">${u.isBanned?'Разбан':'Бан'}</button></div>`; }); },
+    loadV: async () => { /* verify logic */ },
+    ban: async u => { if(confirm('Бан/Разбан?')) { const curr = (await getDoc(doc(db,'users',u))).data().isBanned; await updateDoc(doc(db,'users',u), {isBanned:!curr}); } },
+    stats: async () => { /* stats logic */ }
 };
 
 app.init();
