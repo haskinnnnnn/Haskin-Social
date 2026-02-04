@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// --- ВСТАВЬ СВОЙ КОНФИГ СЮДА ---
+// --- ВСТАВЬ СЮДА СВОЙ КОНФИГ FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -15,7 +15,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-// --- SETTINGS ---
+// --- НАСТРОЙКИ ---
 const CASE_PRICE = 100; 
 const LEGACY_PRICE = 500;
 const ITEMS_DB = {
@@ -32,6 +32,7 @@ const ICONS = {
     lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
 };
 
+// --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
 let currentUser = null;
 let listeners = {};
 let tempImg = null;
@@ -39,13 +40,12 @@ let tempChatImg = null;
 let tempAv = null;
 let curChat = null;
 let activeChatUnsub = null;
-let forbiddenWords = [];
 let activeGroupId = null;
 let mediaRec = null;
 let audioChunks = [];
 let captchaAns = 0;
 
-// --- UTILS ---
+// --- УТИЛИТЫ ---
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
     r.onload = e => {
@@ -64,14 +64,14 @@ const getAv = (u, sz, addFrame=false) => {
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '';
     
-    // SAFE CHECK FOR INVENTORY
+    // Безопасная проверка инвентаря
     const inv = u.inventory || u.authorInventory || [];
     if(addFrame && inv.length > 0) {
         if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
         else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
     }
     
-    // SAFE CHECK FOR SATELLITES
+    // Спутники (Pinned Emojis)
     let satellites = '';
     const pins = u.pinnedEmojis || {}; 
     if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
@@ -82,7 +82,7 @@ const getAv = (u, sz, addFrame=false) => {
 
 const parseTime = (ts) => new Date(ts).toLocaleDateString();
 
-// --- UI ---
+// --- UI CONTROLLER ---
 window.ui = {
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
@@ -91,7 +91,7 @@ window.ui = {
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         
-        // CHAT MODE TOGGLE
+        // РЕЖИМ ЧАТА (Скрывает меню и FAB)
         if(v === 'chat-room') document.body.classList.add('chat-mode');
         else document.body.classList.remove('chat-mode');
 
@@ -104,14 +104,16 @@ window.ui = {
 
         if(v==='chat-room') {
             document.getElementById('view-chat-room').style.display = 'flex';
+            document.getElementById('view-chat-room').classList.add('active');
         } else {
             document.getElementById('view-chat-room').style.display = 'none';
+            document.getElementById('view-chat-room').classList.remove('active');
         }
         
         if(v==='feed') app.loadFeed();
         if(v==='chats') app.loadChats();
         if(v==='groups') app.loadGroups();
-        if(v==='notifs') app.listenNotifs();
+        if(v==='notifs') { app.listenNotifs(); app.readNotifs(); } // Читаем уведомления
         if(v==='market') market.tab('cases');
         if(v==='rich') app.loadRich();
         if(v==='profile') app.loadProfile(p);
@@ -163,10 +165,20 @@ window.app = {
                 const s = await getDoc(doc(db, 'users', u));
                 if(s.exists()) {
                     currentUser = s.data();
-                    // Migrations
-                    currentUser.inventory = currentUser.inventory || [];
-                    currentUser.pinnedEmojis = currentUser.pinnedEmojis || { slot1: null, slot2: null };
                     
+                    // --- МИГРАЦИЯ ДАННЫХ (ФИКС БАГОВ) ---
+                    let needUpdate = false;
+                    const updates = {};
+                    
+                    if(!currentUser.inventory) { updates.inventory = []; needUpdate = true; }
+                    if(!currentUser.pinnedEmojis) { 
+                        updates.pinnedEmojis = { slot1: null, slot2: null }; 
+                        needUpdate = true;
+                        currentUser.pinnedEmojis = { slot1: null, slot2: null }; // Локальный фикс
+                    }
+                    if(needUpdate) await updateDoc(doc(db, 'users', u), updates);
+                    // ------------------------------------
+
                     if(currentUser.isDeleted) throw new Error('Deleted');
                     if(currentUser.isBanned) throw new Error('Banned');
                     
@@ -179,6 +191,7 @@ window.app = {
                 } else throw new Error('No User');
             } else throw new Error('No Local User');
         } catch(e) {
+            console.log(e);
             localStorage.clear();
             ui.toggleAuth('login');
         } finally {
@@ -220,6 +233,16 @@ window.app = {
         } else alert('Неверно');
     },
     logout: () => { localStorage.clear(); location.reload(); },
+
+    // --- NOTIFICATIONS ---
+    readNotifs: async () => {
+        const q = query(collection(db, 'users', currentUser.username, 'notifications'), where('read', '==', false));
+        const s = await getDocs(q);
+        s.forEach(async d => {
+            await updateDoc(doc(db, 'users', currentUser.username, 'notifications', d.id), { read: true });
+        });
+        document.getElementById('notif-badge').style.display = 'none';
+    },
 
     // --- POSTS ---
     openCreatePost: () => {
@@ -272,9 +295,16 @@ window.app = {
             let html = '';
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
+                // Фильтр модерации и банов
                 if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return; 
                 if(p.groupId) return;
                 if(currentUser.blocked.includes(p.author)) return;
+                
+                // Фильтр приватности в ленте
+                if(!currentUser.following.includes(p.author) && p.author !== currentUser.username) {
+                   // Тут упрощенная логика: показываем, но если профиль закрыт - юзер увидит замок при переходе.
+                }
+
                 html += app.renderPost(p);
             });
             c.innerHTML = html;
@@ -364,7 +394,7 @@ window.app = {
                 else postsArr.forEach(p => { if(!p.groupId && p.approved) pc.innerHTML += app.renderPost(p); });
             }
         } else {
-             // GROUP LOGIC (Simplified for brevity, it's the same)
+             // GROUP LOGIC
              const g = await getDoc(doc(db, 'groups', u));
              if(g.exists()) {
                 activeGroupId = u; 
@@ -387,7 +417,7 @@ window.app = {
         }
     },
     
-    // --- CHATS ---
+    // --- CHATS (FIXED) ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='<div class="info-box">Обновление...</div>';
         const friends = currentUser.following; 
@@ -450,7 +480,7 @@ window.app = {
                 }
                 c.innerHTML += html;
             });
-            c.scrollTop = c.scrollHeight;
+            setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100);
         });
     },
 
@@ -482,15 +512,26 @@ window.app = {
     like: async (pid, auth) => { const r = doc(db,'posts',pid); const p=(await getDoc(r)).data(); if(p.likes.includes(currentUser.username)) await updateDoc(r,{likes:arrayRemove(currentUser.username)}); else { await updateDoc(r,{likes:arrayUnion(currentUser.username)}); await updateDoc(doc(db,'users',auth),{balance:increment(1)}); app.notify(auth,'like','оценил пост'); } },
     follow: async (u) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',u); if(currentUser.following.includes(u)) { await updateDoc(me,{following:arrayRemove(u)}); await updateDoc(him,{followers:arrayRemove(currentUser.username)}); currentUser.following = currentUser.following.filter(x=>x!==u); } else { await updateDoc(me,{following:arrayUnion(u)}); await updateDoc(him,{followers:arrayUnion(currentUser.username)}); currentUser.following.push(u); app.notify(u,'sub','подписался'); } ui.nav('profile',u); },
     reqFollow: async (u) => { await updateDoc(doc(db,'users',u),{requests:arrayUnion(currentUser.username)}); app.notify(u,'req','хочет подписаться'); alert('Запрос отправлен'); },
-    checkStatuses: async () => { /* status logic */ },
+    checkStatuses: async () => { 
+        let newStatus = currentUser.status;
+        const bal = currentUser.balance;
+        if(bal > 10000) newStatus = 'Магнат';
+        else if(bal > 1000) newStatus = 'Богач';
+        else if(currentUser.inventory.length >= 10) newStatus = 'Коллекционер';
+        else if(currentUser.followers.length > 50) newStatus = 'Хайпбист';
+        if(newStatus !== currentUser.status && newStatus !== 'Admin') {
+            await updateDoc(doc(db, 'users', currentUser.username), { status: newStatus });
+        }
+    },
     notify: async (to, type, txt) => { if(to === currentUser.username) return; await addDoc(collection(db, 'users', to, 'notifications'), { type, text: txt, from: currentUser.username, time: Date.now(), read: false }); },
     listenNotifs: () => { const q = query(collection(db, 'users', currentUser.username, 'notifications'), orderBy('time', 'desc'), limit(20)); onSnapshot(q, s => { let n = 0; s.forEach(d => { if(!d.data().read) n++ }); document.getElementById('notif-badge').style.display = n?'block':'none'; if(document.getElementById('view-notifs').classList.contains('active')) { const c = document.getElementById('notifs-list'); c.innerHTML=''; s.forEach(d => { const x = d.data(); let act = ''; if(x.type === 'req') act = `<button class="action-btn sm-btn" onclick="app.acceptReq('${x.from}')">Принять</button>`; c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${x.from}')">${ICONS.lock} <div><b>@${x.from}</b> ${x.text}</div> ${act}</div>`; }); } }); },
     acceptReq: async (u) => { await updateDoc(doc(db,'users',currentUser.username),{requests:arrayRemove(u),followers:arrayUnion(u)}); await updateDoc(doc(db,'users',u),{following:arrayUnion(currentUser.username)}); app.notify(u,'msg','принял заявку'); app.listenNotifs(); },
-    openComs: (pid,auth) => { document.getElementById('comments-modal').style.display='flex'; /* comments logic placeholder */ },
-    sendComment: async () => { /* comments logic */ },
+    openComs: (pid,auth) => { document.getElementById('comments-modal').style.display='flex'; const l=document.getElementById('comments-list'); onSnapshot(query(collection(db,'posts',pid,'comments'),orderBy('time','asc')),s=>{l.innerHTML=''; s.forEach(d=>{ const c=d.data(); l.innerHTML+=`<div class="comment-card"><b>${c.author}</b><br>${c.text} ${c.author===currentUser.username?`<span class="comment-del" onclick="app.delComment('${d.id}')">×</span>`:''}</div>`;}); }); window.curPost=pid; },
+    sendComment: async () => { const t=document.getElementById('comment-input').value; if(!t)return; await addDoc(collection(db,'posts',window.curPost,'comments'),{author:currentUser.username,text:t,time:Date.now()}); document.getElementById('comment-input').value=''; },
+    delComment: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',window.curPost,'comments',id)); },
     delPost: async (id) => { if(confirm('Del?')) await deleteDoc(doc(db,'posts',id)); },
     
-    // --- FOLLOWING LIST (NEW) ---
+    // --- FOLLOWING LIST ---
     showFollowing: async (username) => {
         const c = document.getElementById('users-list-content');
         c.innerHTML = 'Загрузка...';
@@ -528,7 +569,7 @@ window.app = {
         }
     },
     
-    // --- STUBS for Groups (Full code in V5.0) ---
+    // --- GROUPS & ADMIN STUBS (Full logic) ---
     createGroup: async () => { const n=document.getElementById('group-name').value; const id='public_'+Date.now(); await setDoc(doc(db,'groups',id),{id,name:n,desc:document.getElementById('group-desc').value,owner:currentUser.username,members:[currentUser.username],avatar:''}); await updateDoc(doc(db,'users',currentUser.username),{groups:arrayUnion(id)}); ui.closeModals(); ui.nav('groups'); },
     loadGroups: async () => { const c=document.getElementById('groups-list'); const s=await getDocs(query(collection(db,'groups'),limit(20))); c.innerHTML=''; s.forEach(d=>{const g=d.data(); c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><div class="avatar av-40" style="background:gray;color:white;display:flex;align-items:center;justify-content:center">${g.avatar?`<img src="${g.avatar}" class="avatar av-40">`:g.name[0]}</div><div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`;}); },
     searchGroup: async (v) => { if(!v)return app.loadGroups(); const c=document.getElementById('groups-list'); c.innerHTML=''; (await getDocs(query(collection(db,'groups'),orderBy('name'),limit(20)))).forEach(d=>{ const g=d.data(); if(g.name.toLowerCase().includes(v.toLowerCase())) c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><b>${g.name}</b></div>`; }); },
@@ -539,7 +580,7 @@ window.app = {
     blockUser: async (t,b) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',t); if(b) { await updateDoc(me,{blocked:arrayUnion(t)}); await updateDoc(him,{blockedBy:arrayUnion(currentUser.username)}); } else { await updateDoc(me,{blocked:arrayRemove(t)}); await updateDoc(him,{blockedBy:arrayRemove(currentUser.username)}); } ui.nav('profile',t); }
 };
 
-// --- MARKET 5.1 ---
+// --- MARKET 5.3 (FIXED) ---
 window.market = {
     tab: (t) => {
         document.querySelectorAll('.view#view-market .tab').forEach(e=>e.classList.remove('active'));
@@ -636,7 +677,6 @@ window.market = {
 
     pinItem: async (slot) => {
         const emoji = document.getElementById('sell-item-emoji').value;
-        
         const upd = {};
         upd[`pinnedEmojis.${slot}`] = emoji;
         await updateDoc(doc(db, 'users', currentUser.username), upd);
@@ -650,7 +690,7 @@ window.market = {
 
     unpinItem: async () => {
         await updateDoc(doc(db, 'users', currentUser.username), { pinnedEmojis: { slot1: null, slot2: null } });
-        currentUser.pinnedEmojis = {};
+        currentUser.pinnedEmojis = { slot1: null, slot2: null };
         alert('Откреплено');
         ui.closeModals();
     },
@@ -669,7 +709,6 @@ window.market = {
     },
 
     showBuyModal: (docId, price, seller, emoji, rarity, itemId) => {
-        if(seller === currentUser.username) return alert("Это ваш лот");
         document.getElementById('buy-emoji-display').innerText = emoji;
         document.getElementById('buy-price-display').innerText = price + ' HC';
         document.getElementById('buy-seller-display').innerText = seller;
@@ -681,7 +720,36 @@ window.market = {
         document.getElementById('buy-item-rarity').value = rarity;
         document.getElementById('buy-item-realid').value = itemId;
         
+        const btn = document.querySelector('#buy-modal .action-btn');
+        // ЛОГИКА ОТМЕНЫ ПРОДАЖИ (ФИКС)
+        if(seller === currentUser.username) {
+            btn.innerText = "Снять с продажи";
+            btn.classList.add('btn-danger');
+            btn.onclick = () => market.executeCancel();
+        } else {
+            btn.innerText = "КУПИТЬ";
+            btn.classList.remove('btn-danger');
+            btn.onclick = () => market.executeBuy();
+        }
+        
         document.getElementById('buy-modal').style.display = 'flex';
+    },
+
+    executeCancel: async () => {
+        if(!confirm("Снять с продажи?")) return;
+        const docId = document.getElementById('buy-doc-id').value;
+        const itemId = document.getElementById('buy-item-realid').value;
+        const emoji = document.getElementById('buy-item-emoji').value;
+        const rarity = document.getElementById('buy-item-rarity').value;
+
+        const itemObj = { id: itemId, emoji, rarity };
+        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(itemObj) });
+        currentUser.inventory.push(itemObj);
+
+        await deleteDoc(doc(db, 'market_items', docId));
+        alert("Возвращено!");
+        ui.closeModals();
+        market.tab('market');
     },
 
     executeBuy: async () => {
@@ -701,7 +769,7 @@ window.market = {
                 const buyerRef = doc(db, 'users', currentUser.username);
                 
                 const iDoc = await t.get(itemRef);
-                if(!iDoc.exists()) throw "Купили!";
+                if(!iDoc.exists()) throw "Уже купили!";
                 
                 t.update(sellerRef, { balance: increment(price) });
                 t.update(buyerRef, { balance: increment(-price), inventory: arrayUnion({ id: itemId, emoji, rarity }) });
