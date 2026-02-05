@@ -44,7 +44,11 @@
 </div>
 
 <div id="game-ui" class="hidden">
-    <div class="game-header">
+    <div class="game-top-area">
+        <div class="game-labels">
+            <span style="float:right">Число</span>
+            <span style="float:right; clear:both; margin-top: 180px;">Таймер</span>
+        </div>
         <div class="game-timer-wrap">
             <svg class="timer-svg" viewBox="0 0 100 100">
                 <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
@@ -52,35 +56,30 @@
             </svg>
             <div id="game-hint-num" class="game-center-num">00</div>
         </div>
-        <div class="game-labels">
-            <span>Таймер</span>
-            <span>Число</span>
-        </div>
     </div>
     
     <div class="game-buttons">
         <button class="game-btn btn-less" onclick="game.makeGuess('less')">
-            <svg viewBox="0 0 24 24" class="game-icon"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
-            Меньше
+            <div class="game-arrow-down"></div> Меньше
         </button>
         <button class="game-btn btn-more" onclick="game.makeGuess('more')">
-            <svg viewBox="0 0 24 24" class="game-icon"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
-            Больше
+            <div class="game-arrow-up"></div> Больше
         </button>
     </div>
 
     <div class="game-footer-decor">
-        <div class="decor-plus">+</div>
-        <div class="decor-minus">-</div>
-        <div class="decor-plus p2">+</div>
-        <div class="decor-minus m2">-</div>
+        <div class="decor-symbol p1">+</div>
+        <div class="decor-symbol m1">-</div>
+        <div class="decor-symbol p2">+</div>
+        <div class="decor-symbol m2">-</div>
+        <div class="decor-symbol p3">+</div>
     </div>
 </div>
 
 <div id="game-result" class="hidden">
     <h1 id="gr-title">ПОБЕДА</h1>
     <div id="gr-emoji">😎</div>
-    <p>Было загадано: <b id="gr-real">0</b></p>
+    <p>Загадано: <b id="gr-real" style="color:yellow; font-size: 1.5em;">0</b></p>
     <p id="gr-msg"></p>
     <button class="action-btn" onclick="game.close()">Закрыть</button>
 </div>
