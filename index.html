@@ -43,6 +43,48 @@
     </div>
 </div>
 
+<div id="game-ui" class="hidden">
+    <div class="game-header">
+        <div class="game-timer-wrap">
+            <svg class="timer-svg" viewBox="0 0 100 100">
+                <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
+                <circle id="timer-progress" class="timer-progress" cx="50" cy="50" r="45"></circle>
+            </svg>
+            <div id="game-hint-num" class="game-center-num">00</div>
+        </div>
+        <div class="game-labels">
+            <span>Таймер</span>
+            <span>Число</span>
+        </div>
+    </div>
+    
+    <div class="game-buttons">
+        <button class="game-btn btn-less" onclick="game.makeGuess('less')">
+            <svg viewBox="0 0 24 24" class="game-icon"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
+            Меньше
+        </button>
+        <button class="game-btn btn-more" onclick="game.makeGuess('more')">
+            <svg viewBox="0 0 24 24" class="game-icon"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
+            Больше
+        </button>
+    </div>
+
+    <div class="game-footer-decor">
+        <div class="decor-plus">+</div>
+        <div class="decor-minus">-</div>
+        <div class="decor-plus p2">+</div>
+        <div class="decor-minus m2">-</div>
+    </div>
+</div>
+
+<div id="game-result" class="hidden">
+    <h1 id="gr-title">ПОБЕДА</h1>
+    <div id="gr-emoji">😎</div>
+    <p>Было загадано: <b id="gr-real">0</b></p>
+    <p id="gr-msg"></p>
+    <button class="action-btn" onclick="game.close()">Закрыть</button>
+</div>
+
 <div id="create-post-modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-head">Новый пост <span onclick="ui.closeModals()" class="close-btn">×</span></div>
@@ -159,9 +201,9 @@
     </div>
 </div>
 
-<div id="game-modal" class="modal-overlay">
+<div id="game-create-modal" class="modal-overlay">
     <div class="modal">
-        <div class="modal-head">Игра "Больше/Меньше" <span onclick="ui.closeModals()" class="close-btn">×</span></div>
+        <div class="modal-head">Создать игру <span onclick="ui.closeModals()" class="close-btn">×</span></div>
         <p>Загадай число от 1 до 100.</p>
         <input type="number" id="game-number" placeholder="Твое число (1-100)">
         <p>Ставка (HC):</p>
@@ -176,7 +218,6 @@
         <div id="users-list-content" class="scroll-list"></div>
     </div>
 </div>
-
 
 <div id="app-screen">
     <div class="fab" onclick="app.openCreatePost()">
@@ -288,7 +329,7 @@
             </div>
             <div id="msg-container" class="msg-area"></div>
             <div class="chat-input-bar" id="chat-bar">
-                <button id="game-btn" class="mic-btn" onclick="game.ui()">🎲</button>
+                <button id="game-btn" class="mic-btn" onclick="game.openCreate()">🎲</button>
                 <label class="attach-btn">📎<input type="file" hidden accept="image/*" onchange="app.handleChatImg(this)"></label>
                 <button id="mic-btn" class="mic-btn" onclick="app.toggleRecord()">🎙️</button>
                 <input id="msg-input" placeholder="Сообщение..." autocomplete="off">
