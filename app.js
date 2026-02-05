@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// --- ВСТАВЬ СВОЙ КОНФИГ FIREBASE ---
+// --- ВСТАВЬ СВОЙ КОНФИГ FIREBASE СЮДА ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -86,7 +86,7 @@ const getAv = (u, sz, addFrame=false) => {
 
 const parseTime = (ts) => new Date(ts).toLocaleDateString();
 
-// --- UI ---
+// --- UI CONTROLLER ---
 window.ui = {
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
@@ -434,7 +434,7 @@ window.app = {
                 
                 if(m.type === 'game_invite') {
                     // NEW GAME LOGIC RENDER
-                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game">
+                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" style="background:#cc00ff; color:white;">
                         <b>🎲 Больше/Меньше</b><br>
                         Ставка: ${m.bet} HC<br>
                         ${m.finished ? `Победил: ${m.winner}` : 
