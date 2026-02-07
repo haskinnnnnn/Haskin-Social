@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// --- ВСТАВЬ СВОЙ КОНФИГ FIREBASE СЮДА ---
+// --- ❗ ВСТАВЬ СЮДА СВОЙ КОНФИГ FIREBASE (тот же, что был раньше) ❗ ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -15,7 +15,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-// --- SETTINGS ---
+// --- НАСТРОЙКИ ---
 const CASE_PRICE = 100; 
 const LEGACY_PRICE = 500;
 const ITEMS_DB = {
@@ -25,14 +25,13 @@ const ITEMS_DB = {
     common: ['💩', '🤖', '👾', '🎃', '😺', '🙉', '🦊', '🌚', '🍕', '🍔', '🍟', '🌭', '🍿', '🧂', '🥓', '🥚', '🍳', '🧇', '🥞', '🧈', '🍞', '🥐', '🥨', '🥯', '🥖', '🧀', '🥗', 'pita', '🥪', '🌮', '🌯', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯']
 };
 
+// Иконки для экономии места
 const ICONS = {
-    like: '<svg class="icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
-    comment: '<svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
     verify: '<svg class="verified-badge" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
     lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
 };
 
-// --- GLOBAL ---
+// Глобальные переменные
 let currentUser = null;
 let listeners = {};
 let tempImg = null;
@@ -45,11 +44,11 @@ let mediaRec = null;
 let audioChunks = [];
 let captchaAns = 0;
 
-// GAME STATE
+// Переменные для Игры
 let activeGame = null;
 let gameTimerInt = null;
 
-// --- UTILS ---
+// --- УТИЛИТЫ ---
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
     r.onload = e => {
@@ -64,18 +63,19 @@ const compress = (file, cb) => {
     }
 };
 
+// Функция получения аватарки (С ЗАЩИТОЙ ОТ СБОЕВ)
 const getAv = (u, sz, addFrame=false) => {
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '';
     
-    // SAFE INVENTORY
+    // Безопасная проверка инвентаря
     const inv = u.inventory || u.authorInventory || [];
     if(addFrame && inv.length > 0) {
         if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
         else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
     }
     
-    // SAFE SATELLITES
+    // Безопасная проверка спутников (FIX ДЛЯ ХАСКИНА)
     let satellites = '';
     const pins = u.pinnedEmojis || {}; 
     if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
@@ -86,31 +86,40 @@ const getAv = (u, sz, addFrame=false) => {
 
 const parseTime = (ts) => new Date(ts).toLocaleDateString();
 
-// --- UI CONTROLLER ---
+// --- UI МЕНЕДЖЕР ---
 window.ui = {
+    // Навигация
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
         
+        // Скрываем все views
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         
+        // Режим чата (скрывает меню)
         if(v === 'chat-room') document.body.classList.add('chat-mode');
         else document.body.classList.remove('chat-mode');
 
+        // Показываем нужный view
         const el = document.getElementById('view-'+(v==='admin'?'admin':v));
         if(el) el.classList.add('active');
         
+        // Подсветка кнопки меню
         const map = {'feed':0, 'market':1, 'search':2, 'groups':3, 'chats':4, 'notifs':5, 'rich':6, 'profile':7, 'settings':8};
         if(map[v]!==undefined && document.querySelectorAll('.nav-item')[map[v]]) 
             document.querySelectorAll('.nav-item')[map[v]].classList.add('active');
 
+        // Обработка чата (отдельный слой)
         if(v==='chat-room') {
+            document.getElementById('view-chat-room').classList.remove('hidden');
             document.getElementById('view-chat-room').classList.add('active');
         } else {
+            document.getElementById('view-chat-room').classList.add('hidden');
             document.getElementById('view-chat-room').classList.remove('active');
         }
         
+        // Загрузка данных
         if(v==='feed') app.loadFeed();
         if(v==='chats') app.loadChats();
         if(v==='groups') app.loadGroups();
@@ -125,6 +134,7 @@ window.ui = {
             if(currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
         }
     },
+    // Управление модалками
     toggleAuth: m => {
         document.getElementById('login-box').classList.toggle('hidden', m!=='login');
         document.getElementById('reg-box').classList.toggle('hidden', m!=='reg');
@@ -135,7 +145,7 @@ window.ui = {
         el.type = el.type==='password'?'text':'password';
     },
     closeModals: () => {
-        document.querySelectorAll('.modal-overlay').forEach(e=>e.style.display='none');
+        document.querySelectorAll('.modal-overlay').forEach(e=>e.classList.add('hidden'));
         document.getElementById('case-result').classList.add('hidden');
         document.getElementById('case-spinner').classList.remove('hidden');
         document.getElementById('case-close-btn').classList.add('hidden');
@@ -153,8 +163,9 @@ window.ui = {
     }
 };
 
-// --- APP LOGIC ---
+// --- ГЛАВНАЯ ЛОГИКА ---
 window.app = {
+    // Инициализация (Вход)
     init: async () => {
         if(localStorage.getItem('theme')==='dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
@@ -167,23 +178,33 @@ window.app = {
                 if(s.exists()) {
                     currentUser = s.data();
                     
-                    // --- FORCE MIGRATION ---
+                    // --- 🚑 ЛЕЧЕНИЕ АККАУНТА "HASKIN" (МИГРАЦИЯ) ---
                     let needUpdate = false;
                     const updates = {};
+                    
+                    // Если нет инвентаря - создаем
                     if(!currentUser.inventory) { updates.inventory = []; needUpdate = true; }
+                    
+                    // Если нет поля для закрепа смайлов - создаем
                     if(!currentUser.pinnedEmojis) { 
                         updates.pinnedEmojis = { slot1: null, slot2: null }; 
                         needUpdate = true;
+                        // Применяем локально сразу, чтобы не ждать перезагрузки
                         currentUser.pinnedEmojis = { slot1: null, slot2: null };
                     }
-                    if(needUpdate) await updateDoc(doc(db, 'users', u), updates);
-                    // -----------------------
+                    
+                    // Сохраняем "лекарство" в базу
+                    if(needUpdate) {
+                        await updateDoc(doc(db, 'users', u), updates);
+                        console.log("Аккаунт вылечен (Миграция успешна)");
+                    }
+                    // ----------------------------------------------------
 
                     if(currentUser.isDeleted) throw new Error('Deleted');
                     if(currentUser.isBanned) throw new Error('Banned');
                     
-                    document.getElementById('auth-screen').style.display='none';
-                    document.getElementById('app-screen').style.display='block';
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app-screen').classList.remove('hidden'); // Показываем интерфейс
                     if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
                     
                     app.checkStatuses();
@@ -195,16 +216,16 @@ window.app = {
             localStorage.clear();
             ui.toggleAuth('login');
         } finally {
-            setTimeout(() => { document.getElementById('splash').style.display='none'; }, 500);
+            setTimeout(() => { document.getElementById('splash').classList.add('hidden'); }, 500);
         }
     },
 
+    // Авторизация
     genCaptcha: () => {
         const a=Math.floor(Math.random()*10), b=Math.floor(Math.random()*10);
         captchaAns = a+b;
         document.getElementById('captcha-task').innerText = `${a} + ${b}`;
     },
-
     register: async () => {
         const u = document.getElementById('reg-user').value.toLowerCase().trim();
         const n = document.getElementById('reg-name').value.trim();
@@ -221,7 +242,6 @@ window.app = {
             alert('Готово! Войдите.'); ui.toggleAuth('login');
         } catch(e) { alert('Ошибка'); }
     },
-
     login: async () => {
         const u = document.getElementById('login-user').value.toLowerCase().trim();
         const p = document.getElementById('login-pass').value;
@@ -234,6 +254,7 @@ window.app = {
     },
     logout: () => { localStorage.clear(); location.reload(); },
 
+    // Уведомления
     readNotifs: async () => {
         const q = query(collection(db, 'users', currentUser.username, 'notifications'), where('read', '==', false));
         const s = await getDocs(q);
@@ -243,12 +264,12 @@ window.app = {
         document.getElementById('notif-badge').style.display = 'none';
     },
 
+    // Посты
     openCreatePost: () => {
-        document.getElementById('group-post-hint').style.display = activeGroupId ? 'block' : 'none';
+        document.getElementById('group-post-hint').classList.toggle('hidden', !activeGroupId);
         if(activeGroupId) document.getElementById('group-post-hint').innerText = "В группу: " + activeGroupId;
-        document.getElementById('create-post-modal').style.display='flex';
+        document.getElementById('create-post-modal').classList.remove('hidden');
     },
-
     createPost: async () => {
         if(currentUser.isMuted) return alert("Вы замьючены!");
         const txt = document.getElementById('post-text').value.trim();
@@ -269,7 +290,6 @@ window.app = {
         app.clearImg(); ui.closeModals();
         if(activeGroupId) app.loadProfile(activeGroupId);
     },
-
     loadFeed: async () => {
         const c = document.getElementById('feed-content'); c.innerHTML = '';
         if(listeners.feed) listeners.feed();
@@ -281,13 +301,11 @@ window.app = {
                 if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return; 
                 if(p.groupId) return;
                 if(currentUser.blocked.includes(p.author)) return;
-                if(!currentUser.following.includes(p.author) && p.author !== currentUser.username) {} 
                 html += app.renderPost(p);
             });
             c.innerHTML = html;
         });
     },
-
     renderPost: (p, isTop=false) => {
         const likes = p.likes || [];
         const isLiked = likes.includes(currentUser.username);
@@ -305,13 +323,14 @@ window.app = {
             <div style="white-space:pre-wrap">${p.content}</div>
             ${p.image ? `<img src="${p.image}" class="post-img">` : ''}
             <div class="post-actions">
-                <div class="act-btn ${isLiked?'liked':''}" onclick="app.like('${p.id}', '${p.author}')">${ICONS.like} ${likes.length}</div>
-                <div class="act-btn" onclick="app.openComs('${p.id}', '${p.author}')">${ICONS.comment}</div>
+                <div class="act-btn ${isLiked?'liked':''}" onclick="app.like('${p.id}', '${p.author}')">❤️ ${likes.length}</div>
+                <div class="act-btn" onclick="app.openComs('${p.id}', '${p.author}')">💬</div>
                 ${currentUser.isAdmin || p.author === currentUser.username ? `<div class="act-btn" style="margin-left:auto; color:red" onclick="app.delPost('${p.id}')">🗑️</div>` : ''}
             </div>
         </div>`;
     },
 
+    // --- ПРОФИЛЬ ---
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         const pc = document.getElementById('profile-posts');
@@ -368,13 +387,13 @@ window.app = {
                     else postsArr.forEach(p => { if(!p.groupId && p.approved) pc.innerHTML += app.renderPost(p); });
                 }
             } else {
+                 // Группы
                  const g = await getDoc(doc(db, 'groups', u));
                  if(g.exists()) {
                     activeGroupId = u; 
                     const group = g.data();
                     const isMem = group.members.includes(currentUser.username);
-                    const isOwner = group.owner === currentUser.username;
-                    const ownerControls = isOwner ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec sm-btn" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger sm-btn" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
+                    const ownerControls = group.owner === currentUser.username ? `<div style="display:flex; gap:5px; justify-content:center; margin-top:10px;"><button class="action-btn btn-sec sm-btn" onclick="app.editGroup('${u}')">✏️</button><button class="action-btn btn-danger sm-btn" onclick="app.deleteGroup('${u}')">🗑️</button></div>` : '';
                     c.innerHTML = `<div class="card center-content"><div class="avatar av-80" style="background:gray; display:inline-flex; align-items:center; justify-content:center; font-size:30px; color:white;">${group.avatar ? `<img src="${group.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : group.name[0]}</div><h2>${group.name}</h2><p>${group.desc}</p><p style="color:gray">${group.members.length} участников</p>${isMem ? `<button class="action-btn btn-sec" onclick="app.joinGroup('${u}', false)">Выйти</button>` : `<button class="action-btn" onclick="app.joinGroup('${u}', true)">Вступить</button>`}${ownerControls}</div>`;
                     const q = query(collection(db, 'posts'), where('groupId', '==', u));
                     const ps = await getDocs(q);
@@ -391,6 +410,30 @@ window.app = {
         }
     },
     
+    // --- ТОП БОГАЧЕЙ (БЕЗ ХАСКИНА) ---
+    loadRich: async () => {
+        const c = document.getElementById('rich-list'); c.innerHTML = '<div class="info-box">Загрузка...</div>';
+        const q = query(collection(db, 'users'), orderBy('balance', 'desc'), limit(20));
+        const s = await getDocs(q);
+        c.innerHTML = '';
+        let i = 1;
+        s.forEach(d => {
+            const u = d.data();
+            // 🛑 ФИЛЬТР: Убираем аккаунт Haskin из топа
+            if (u.username === 'haskin') return; 
+            
+            const medal = i===1?'🥇':(i===2?'🥈':(i===3?'🥉':''));
+            c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${u.username}')">
+                <div style="font-size:1.2em; width:30px;">${medal || i+'.'}</div>
+                ${getAv(u, 'av-40')}
+                <div style="flex:1;"><b>${u.name}</b><br>@${u.username}</div>
+                <b style="color:var(--gold-color)">${u.balance||0} HC</b>
+            </div>`;
+            i++;
+        });
+    },
+
+    // --- ЧАТЫ И МЕССЕНДЖЕР ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='<div class="info-box">Обновление...</div>';
         const friends = currentUser.following; 
@@ -433,12 +476,11 @@ window.app = {
                 let html = '';
                 
                 if(m.type === 'game_invite') {
-                    // NEW GAME LOGIC RENDER
-                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" style="background:#cc00ff; color:white;">
-                        <b>🎲 Больше/Меньше</b><br>
+                    // РЕНДЕР ПРИГЛАШЕНИЯ В ИГРУ
+                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" style="background:#cc00ff; color:white; border:none; cursor:pointer;" onclick="game.start('${d.id}', '${chatId}', ${m.target}, ${m.hint}, ${m.bet}, '${m.creator}')">
+                        <b>🎲 ИГРАТЬ</b><br>
                         Ставка: ${m.bet} HC<br>
-                        ${m.finished ? `Победил: ${m.winner}` : 
-                          `<button class="action-btn full-width" onclick="game.start('${d.id}', '${chatId}', ${m.target}, ${m.hint}, ${m.bet}, '${m.creator}')">ИГРАТЬ</button>`}
+                        ${m.finished ? `<small>Победил: ${m.winner}</small>` : '<small>Нажми чтобы начать</small>'}
                     </div></div>`;
                 } else {
                     let content = m.text;
@@ -466,6 +508,7 @@ window.app = {
         tempChatImg = null;
     },
 
+    // --- ПРОЧИЕ ФУНКЦИИ ---
     handleImg: el => { if(el.files[0]) compress(el.files[0], d=>{ tempImg=d; document.getElementById('preview-img-el').src=d; document.getElementById('post-img-preview').classList.remove('hidden'); }) },
     clearImg: () => { tempImg=null; document.getElementById('post-img-preview').classList.add('hidden'); },
     handleAvatar: (el, isGroup=false) => { if(el.files[0]) compress(el.files[0], d=>{ tempAv=d; if(isGroup) document.getElementById('edit-group-av-prev').src = d; }) },
@@ -473,37 +516,22 @@ window.app = {
     saveProfile: async () => { const n = document.getElementById('edit-name').value; const b = document.getElementById('edit-bio').value; const upd = { name:n, bio:b }; if(tempAv) upd.avatar = tempAv; await updateDoc(doc(db, 'users', currentUser.username), upd); location.reload(); },
     togglePrivate: async () => { const v = document.getElementById('private-switch').checked; await updateDoc(doc(db, 'users', currentUser.username), { isPrivate: v }); },
     changePass: async () => { const p1 = document.getElementById('ch-pass').value; if(p1) await updateDoc(doc(db, 'users', currentUser.username), { password: p1 }); alert('OK'); },
-    
     like: async (pid, auth) => { const r = doc(db,'posts',pid); const p=(await getDoc(r)).data(); if(p.likes.includes(currentUser.username)) await updateDoc(r,{likes:arrayRemove(currentUser.username)}); else { await updateDoc(r,{likes:arrayUnion(currentUser.username)}); await updateDoc(doc(db,'users',auth),{balance:increment(1)}); app.notify(auth,'like','оценил пост'); } },
     follow: async (u) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',u); if(currentUser.following.includes(u)) { await updateDoc(me,{following:arrayRemove(u)}); await updateDoc(him,{followers:arrayRemove(currentUser.username)}); currentUser.following = currentUser.following.filter(x=>x!==u); } else { await updateDoc(me,{following:arrayUnion(u)}); await updateDoc(him,{followers:arrayUnion(currentUser.username)}); currentUser.following.push(u); app.notify(u,'sub','подписался'); } ui.nav('profile',u); },
     reqFollow: async (u) => { await updateDoc(doc(db,'users',u),{requests:arrayUnion(currentUser.username)}); app.notify(u,'req','хочет подписаться'); alert('Запрос отправлен'); },
-    checkStatuses: async () => { 
-        let newStatus = currentUser.status;
-        const bal = currentUser.balance;
-        if(bal > 10000) newStatus = 'Магнат';
-        else if(bal > 1000) newStatus = 'Богач';
-        else if(currentUser.inventory.length >= 10) newStatus = 'Коллекционер';
-        else if(currentUser.followers.length > 50) newStatus = 'Хайпбист';
-        if(newStatus !== currentUser.status && newStatus !== 'Admin') {
-            await updateDoc(doc(db, 'users', currentUser.username), { status: newStatus });
-        }
-    },
+    checkStatuses: async () => { let newStatus = currentUser.status; const bal = currentUser.balance; if(bal > 10000) newStatus = 'Магнат'; else if(bal > 1000) newStatus = 'Богач'; else if(currentUser.inventory.length >= 10) newStatus = 'Коллекционер'; else if(currentUser.followers.length > 50) newStatus = 'Хайпбист'; if(newStatus !== currentUser.status && newStatus !== 'Admin') { await updateDoc(doc(db, 'users', currentUser.username), { status: newStatus }); } },
     notify: async (to, type, txt) => { if(to === currentUser.username) return; await addDoc(collection(db, 'users', to, 'notifications'), { type, text: txt, from: currentUser.username, time: Date.now(), read: false }); },
     listenNotifs: () => { const q = query(collection(db, 'users', currentUser.username, 'notifications'), orderBy('time', 'desc'), limit(20)); onSnapshot(q, s => { let n = 0; s.forEach(d => { if(!d.data().read) n++ }); document.getElementById('notif-badge').style.display = n?'block':'none'; if(document.getElementById('view-notifs').classList.contains('active')) { const c = document.getElementById('notifs-list'); c.innerHTML=''; s.forEach(d => { const x = d.data(); let act = ''; if(x.type === 'req') act = `<button class="action-btn sm-btn" onclick="app.acceptReq('${x.from}')">Принять</button>`; c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${x.from}')">${ICONS.lock} <div><b>@${x.from}</b> ${x.text}</div> ${act}</div>`; }); } }); },
     acceptReq: async (u) => { await updateDoc(doc(db,'users',currentUser.username),{requests:arrayRemove(u),followers:arrayUnion(u)}); await updateDoc(doc(db,'users',u),{following:arrayUnion(currentUser.username)}); app.notify(u,'msg','принял заявку'); app.listenNotifs(); },
-    openComs: (pid,auth) => { document.getElementById('comments-modal').style.display='flex'; const l=document.getElementById('comments-list'); onSnapshot(query(collection(db,'posts',pid,'comments'),orderBy('time','asc')),s=>{l.innerHTML=''; s.forEach(d=>{ const c=d.data(); l.innerHTML+=`<div class="comment-card"><b>${c.author}</b><br>${c.text} ${c.author===currentUser.username?`<span class="comment-del" onclick="app.delComment('${d.id}')">×</span>`:''}</div>`;}); }); window.curPost=pid; },
+    openComs: (pid,auth) => { document.getElementById('comments-modal').classList.remove('hidden'); const l=document.getElementById('comments-list'); onSnapshot(query(collection(db,'posts',pid,'comments'),orderBy('time','asc')),s=>{l.innerHTML=''; s.forEach(d=>{ const c=d.data(); l.innerHTML+=`<div class="comment-card"><b>${c.author}</b><br>${c.text} ${c.author===currentUser.username?`<span class="comment-del" onclick="app.delComment('${d.id}')">×</span>`:''}</div>`;}); }); window.curPost=pid; },
     sendComment: async () => { const t=document.getElementById('comment-input').value; if(!t)return; await addDoc(collection(db,'posts',window.curPost,'comments'),{author:currentUser.username,text:t,time:Date.now()}); document.getElementById('comment-input').value=''; },
     delComment: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',window.curPost,'comments',id)); },
     delPost: async (id) => { if(confirm('Del?')) await deleteDoc(doc(db,'posts',id)); },
-    
     showFollowing: async (username) => {
         const c = document.getElementById('users-list-content'); c.innerHTML = 'Загрузка...';
-        document.getElementById('users-list-modal').style.display = 'flex';
-        const uDoc = await getDoc(doc(db, 'users', username));
-        if(!uDoc.exists()) return;
-        const list = uDoc.data().following || [];
-        c.innerHTML = '';
-        if(list.length === 0) c.innerHTML = '<div class="info-box">Пусто</div>';
+        document.getElementById('users-list-modal').classList.remove('hidden');
+        const uDoc = await getDoc(doc(db, 'users', username)); if(!uDoc.exists()) return;
+        const list = uDoc.data().following || []; c.innerHTML = ''; if(list.length === 0) c.innerHTML = '<div class="info-box">Пусто</div>';
         for(const login of list) {
             const userRef = await getDoc(doc(db, 'users', login));
             if(userRef.exists()) {
@@ -514,16 +542,12 @@ window.app = {
             }
         }
     },
-
-    unfollowFromList: async (target) => {
-        if(confirm(`Отписаться от ${target}?`)) { await app.follow(target); app.showFollowing(currentUser.username); }
-    },
-    
+    unfollowFromList: async (target) => { if(confirm(`Отписаться от ${target}?`)) { await app.follow(target); app.showFollowing(currentUser.username); } },
     createGroup: async () => { const n=document.getElementById('group-name').value; const id='public_'+Date.now(); await setDoc(doc(db,'groups',id),{id,name:n,desc:document.getElementById('group-desc').value,owner:currentUser.username,members:[currentUser.username],avatar:''}); await updateDoc(doc(db,'users',currentUser.username),{groups:arrayUnion(id)}); ui.closeModals(); ui.nav('groups'); },
     loadGroups: async () => { const c=document.getElementById('groups-list'); const s=await getDocs(query(collection(db,'groups'),limit(20))); c.innerHTML=''; s.forEach(d=>{const g=d.data(); c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><div class="avatar av-40" style="background:gray;color:white;display:flex;align-items:center;justify-content:center">${g.avatar?`<img src="${g.avatar}" class="avatar av-40">`:g.name[0]}</div><div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`;}); },
     searchGroup: async (v) => { if(!v)return app.loadGroups(); const c=document.getElementById('groups-list'); c.innerHTML=''; (await getDocs(query(collection(db,'groups'),orderBy('name'),limit(20)))).forEach(d=>{ const g=d.data(); if(g.name.toLowerCase().includes(v.toLowerCase())) c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><b>${g.name}</b></div>`; }); },
     joinGroup: async (gid,j) => { const r=doc(db,'groups',gid); if(j) await updateDoc(r,{members:arrayUnion(currentUser.username)}); else await updateDoc(r,{members:arrayRemove(currentUser.username)}); ui.nav('profile',gid); },
-    editGroup: async (gid) => { const g=(await getDoc(doc(db,'groups',gid))).data(); document.getElementById('edit-group-name').value=g.name; document.getElementById('edit-group-desc').value=g.desc; document.getElementById('edit-group-id').value=gid; document.getElementById('edit-group-av-prev').src=g.avatar||''; tempAv=null; document.getElementById('edit-group-modal').style.display='flex'; },
+    editGroup: async (gid) => { const g=(await getDoc(doc(db,'groups',gid))).data(); document.getElementById('edit-group-name').value=g.name; document.getElementById('edit-group-desc').value=g.desc; document.getElementById('edit-group-id').value=gid; document.getElementById('edit-group-av-prev').src=g.avatar||''; tempAv=null; document.getElementById('edit-group-modal').classList.remove('hidden'); },
     saveGroupChanges: async () => { const gid=document.getElementById('edit-group-id').value; const upd={name:document.getElementById('edit-group-name').value,desc:document.getElementById('edit-group-desc').value}; if(tempAv) upd.avatar=tempAv; await updateDoc(doc(db,'groups',gid),upd); ui.closeModals(); ui.nav('profile',gid); },
     deleteGroup: async (gid) => { if(confirm('Удалить?')) { await deleteDoc(doc(db,'groups',gid)); ui.nav('groups'); }},
     blockUser: async (t,b) => { const me=doc(db,'users',currentUser.username); const him=doc(db,'users',t); if(b) { await updateDoc(me,{blocked:arrayUnion(t)}); await updateDoc(him,{blockedBy:arrayUnion(currentUser.username)}); } else { await updateDoc(me,{blocked:arrayRemove(t)}); await updateDoc(him,{blockedBy:arrayRemove(currentUser.username)}); } ui.nav('profile',t); }
@@ -544,13 +568,12 @@ window.market = {
         }
         if(t==='market') market.loadMarketplace();
     },
-
     buyCase: async (type) => {
         const price = type==='legacy' ? LEGACY_PRICE : CASE_PRICE;
         if(currentUser.balance < price) return alert("Мало денег");
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-price) });
         currentUser.balance -= price;
-        document.getElementById('case-modal').style.display = 'flex';
+        document.getElementById('case-modal').classList.remove('hidden');
         const rand = Math.random() * 100;
         let rar = 'common';
         if(type === 'legacy') { if (rand < 5) rar = 'legendary'; else if (rand < 20) rar = 'epic'; else if (rand < 50) rar = 'rare'; } 
@@ -560,15 +583,13 @@ window.market = {
         currentUser.inventory.push(newItem);
         setTimeout(() => { document.getElementById('case-spinner').classList.add('hidden'); document.getElementById('case-result').innerHTML = `<div class="market-emoji win-anim" style="font-size:100px">${emoji}</div><h3>${rar}</h3>`; document.getElementById('case-result').classList.remove('hidden'); document.getElementById('case-close-btn').classList.remove('hidden'); }, 1500);
     },
-
     openSellModal: (id, emoji, rarity) => {
         document.getElementById('sell-item-id').value = id;
         document.getElementById('sell-item-emoji').value = emoji;
         document.getElementById('sell-item-rarity').value = rarity;
         document.getElementById('sell-emoji-preview').innerText = emoji;
-        document.getElementById('sell-modal').style.display = 'flex';
+        document.getElementById('sell-modal').classList.remove('hidden');
     },
-
     confirmSell: async () => {
         const p = parseInt(document.getElementById('sell-price').value);
         if(!p) return;
@@ -583,7 +604,6 @@ window.market = {
         await addDoc(collection(db, 'market_items'), { seller: currentUser.username, emoji: item.emoji, rarity: item.rarity, price: p, itemId: id, createdAt: Date.now() });
         ui.closeModals(); market.tab('inventory');
     },
-
     pinItem: async (slot) => {
         const emoji = document.getElementById('sell-item-emoji').value;
         const upd = {}; upd[`pinnedEmojis.${slot}`] = emoji;
@@ -592,13 +612,11 @@ window.market = {
         currentUser.pinnedEmojis[slot] = emoji;
         alert(`Закреплено!`); ui.closeModals();
     },
-
     unpinItem: async () => {
         await updateDoc(doc(db, 'users', currentUser.username), { pinnedEmojis: { slot1: null, slot2: null } });
         currentUser.pinnedEmojis = { slot1: null, slot2: null };
         alert('Откреплено'); ui.closeModals();
     },
-
     loadMarketplace: async () => {
         const c = document.getElementById('market-content'); c.innerHTML = 'Загрузка...';
         const s = await getDocs(query(collection(db, 'market_items'), orderBy('price', 'asc')));
@@ -608,7 +626,6 @@ window.market = {
             c.innerHTML += `<div class="market-item item-${i.rarity}" onclick="market.showBuyModal('${d.id}', ${i.price}, '${i.seller}', '${i.emoji}', '${i.rarity}', '${i.itemId}')"><span class="market-emoji">${i.emoji}</span><span class="market-price">${i.price} HC</span></div>`;
         });
     },
-
     showBuyModal: (docId, price, seller, emoji, rarity, itemId) => {
         document.getElementById('buy-emoji-display').innerText = emoji;
         document.getElementById('buy-price-display').innerText = price + ' HC';
@@ -619,15 +636,14 @@ window.market = {
         document.getElementById('buy-item-emoji').value = emoji;
         document.getElementById('buy-item-rarity').value = rarity;
         document.getElementById('buy-item-realid').value = itemId;
-        const btn = document.querySelector('#buy-modal .action-btn');
+        const btn = document.getElementById('buy-btn-action');
         if(seller === currentUser.username) {
             btn.innerText = "Снять с продажи"; btn.classList.add('btn-danger'); btn.onclick = () => market.executeCancel();
         } else {
             btn.innerText = "КУПИТЬ"; btn.classList.remove('btn-danger'); btn.onclick = () => market.executeBuy();
         }
-        document.getElementById('buy-modal').style.display = 'flex';
+        document.getElementById('buy-modal').classList.remove('hidden');
     },
-
     executeCancel: async () => {
         if(!confirm("Снять с продажи?")) return;
         const docId = document.getElementById('buy-doc-id').value;
@@ -640,7 +656,6 @@ window.market = {
         await deleteDoc(doc(db, 'market_items', docId));
         alert("Возвращено!"); ui.closeModals(); market.tab('market');
     },
-
     executeBuy: async () => {
         const docId = document.getElementById('buy-doc-id').value;
         const price = parseInt(document.getElementById('buy-item-price').value);
@@ -665,26 +680,22 @@ window.market = {
     }
 };
 
-// --- NEW GAME: HI-LO (REALTIME) ---
+// --- НОВАЯ ИГРА: БОЛЬШЕ-МЕНЬШЕ (ВИЗУАЛ) ---
 window.game = {
-    openCreate: () => { document.getElementById('game-create-modal').style.display='flex'; },
+    openCreate: () => { document.getElementById('game-create-modal').classList.remove('hidden'); },
     create: async () => {
         const num = parseInt(document.getElementById('game-number').value);
         const bet = parseInt(document.getElementById('game-bet').value);
         if(!num || num < 1 || num > 100) return alert('1-100');
         if(currentUser.balance < bet) return alert('Нет денег');
-        
-        // Hint logic
         let hint = num + Math.floor(Math.random() * 10) - 5;
         if(hint === num) hint++; 
-        
         const chatId = [currentUser.username, curChat].sort().join('_');
         await addDoc(collection(db, 'chats', chatId, 'messages'), { type: 'game_invite', creator: currentUser.username, target: num, hint: hint, bet: bet, time: Date.now(), finished: false });
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
         currentUser.balance -= bet;
         ui.closeModals();
     },
-
     start: async (msgId, chatId, target, hint, bet, creator) => {
         if(currentUser.balance < bet) return alert('Нужна ставка ' + bet);
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
@@ -694,7 +705,7 @@ window.game = {
         document.getElementById('game-ui').classList.remove('hidden');
         document.getElementById('game-hint-num').innerText = hint;
         
-        // Timer Logic
+        // Запуск таймера
         let tl = 100;
         const timerCircle = document.getElementById('timer-progress');
         if(gameTimerInt) clearInterval(gameTimerInt);
@@ -706,21 +717,17 @@ window.game = {
                 clearInterval(gameTimerInt);
                 game.finish(false, 'Время вышло!');
             }
-        }, 100); // 10 seconds total
+        }, 100); 
     },
-
     makeGuess: (choice) => {
         if(!activeGame) return;
         clearInterval(gameTimerInt);
         const g = activeGame;
         let win = false;
-        
         if(choice === 'more' && g.target > g.hint) win = true;
         if(choice === 'less' && g.target < g.hint) win = true;
-        
         game.finish(win, win ? 'Ты угадал!' : 'Неверно!');
     },
-
     finish: async (isWin, msg) => {
         const g = activeGame;
         const winner = isWin ? currentUser.username : g.creator;
@@ -728,7 +735,7 @@ window.game = {
         
         document.getElementById('game-ui').classList.add('hidden');
         
-        // Show Result Screen
+        // Экран результата
         const r = document.getElementById('game-result');
         r.classList.remove('hidden');
         document.getElementById('gr-title').innerText = isWin ? "ПОБЕДА" : "ПРОИГРЫШ";
@@ -737,20 +744,19 @@ window.game = {
         document.getElementById('gr-real').innerText = g.target;
         document.getElementById('gr-msg').innerText = msg;
 
-        // DB Updates
+        // Обновление баланса и статуса игры
         await updateDoc(doc(db, 'users', winner), { balance: increment(pot) });
         if(winner === currentUser.username) currentUser.balance += pot;
         await updateDoc(doc(db, 'chats', g.chatId, 'messages', g.msgId), { finished: true, winner: winner });
         
         activeGame = null;
     },
-
     close: () => {
         document.getElementById('game-result').classList.add('hidden');
     }
 };
 
-// --- ADMIN 2.1 ---
+// --- АДМИНКА ---
 window.admin = {
     tab: t => {
         const c = document.getElementById('adm-content');
