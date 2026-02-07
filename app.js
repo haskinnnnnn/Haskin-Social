@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// --- ❗ ВСТАВЬ СЮДА СВОЙ КОНФИГ FIREBASE (тот же, что был раньше) ❗ ---
+// --- ВСТАВЬ СЮДА СВОЙ КОНФИГ FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -25,13 +25,12 @@ const ITEMS_DB = {
     common: ['💩', '🤖', '👾', '🎃', '😺', '🙉', '🦊', '🌚', '🍕', '🍔', '🍟', '🌭', '🍿', '🧂', '🥓', '🥚', '🍳', '🧇', '🥞', '🧈', '🍞', '🥐', '🥨', '🥯', '🥖', '🧀', '🥗', 'pita', '🥪', '🌮', '🌯', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯']
 };
 
-// Иконки для экономии места
 const ICONS = {
     verify: '<svg class="verified-badge" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
     lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
 };
 
-// Глобальные переменные
+// ГЛОБАЛЬНЫЕ
 let currentUser = null;
 let listeners = {};
 let tempImg = null;
@@ -43,8 +42,6 @@ let activeGroupId = null;
 let mediaRec = null;
 let audioChunks = [];
 let captchaAns = 0;
-
-// Переменные для Игры
 let activeGame = null;
 let gameTimerInt = null;
 
@@ -63,19 +60,19 @@ const compress = (file, cb) => {
     }
 };
 
-// Функция получения аватарки (С ЗАЩИТОЙ ОТ СБОЕВ)
+// БЕЗОПАСНЫЙ ГЕНЕРАТОР АВАТАРКИ (ФИКС ВЫЛЕТОВ)
 const getAv = (u, sz, addFrame=false) => {
+    if (!u) return `<div class="avatar-wrap"><img src="https://via.placeholder.com/80" class="avatar ${sz}"></div>`;
+    
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '';
     
-    // Безопасная проверка инвентаря
     const inv = u.inventory || u.authorInventory || [];
     if(addFrame && inv.length > 0) {
         if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
         else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
     }
     
-    // Безопасная проверка спутников (FIX ДЛЯ ХАСКИНА)
     let satellites = '';
     const pins = u.pinnedEmojis || {}; 
     if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
@@ -86,31 +83,25 @@ const getAv = (u, sz, addFrame=false) => {
 
 const parseTime = (ts) => new Date(ts).toLocaleDateString();
 
-// --- UI МЕНЕДЖЕР ---
+// --- UI ---
 window.ui = {
-    // Навигация
     nav: (v, p) => {
         if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) { if(currentUser) p = currentUser.username; else return; }
         
-        // Скрываем все views
         document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
         
-        // Режим чата (скрывает меню)
         if(v === 'chat-room') document.body.classList.add('chat-mode');
         else document.body.classList.remove('chat-mode');
 
-        // Показываем нужный view
         const el = document.getElementById('view-'+(v==='admin'?'admin':v));
         if(el) el.classList.add('active');
         
-        // Подсветка кнопки меню
         const map = {'feed':0, 'market':1, 'search':2, 'groups':3, 'chats':4, 'notifs':5, 'rich':6, 'profile':7, 'settings':8};
         if(map[v]!==undefined && document.querySelectorAll('.nav-item')[map[v]]) 
             document.querySelectorAll('.nav-item')[map[v]].classList.add('active');
 
-        // Обработка чата (отдельный слой)
         if(v==='chat-room') {
             document.getElementById('view-chat-room').classList.remove('hidden');
             document.getElementById('view-chat-room').classList.add('active');
@@ -119,7 +110,6 @@ window.ui = {
             document.getElementById('view-chat-room').classList.remove('active');
         }
         
-        // Загрузка данных
         if(v==='feed') app.loadFeed();
         if(v==='chats') app.loadChats();
         if(v==='groups') app.loadGroups();
@@ -134,7 +124,6 @@ window.ui = {
             if(currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
         }
     },
-    // Управление модалками
     toggleAuth: m => {
         document.getElementById('login-box').classList.toggle('hidden', m!=='login');
         document.getElementById('reg-box').classList.toggle('hidden', m!=='reg');
@@ -163,9 +152,8 @@ window.ui = {
     }
 };
 
-// --- ГЛАВНАЯ ЛОГИКА ---
+// --- APP LOGIC ---
 window.app = {
-    // Инициализация (Вход)
     init: async () => {
         if(localStorage.getItem('theme')==='dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
@@ -178,33 +166,20 @@ window.app = {
                 if(s.exists()) {
                     currentUser = s.data();
                     
-                    // --- 🚑 ЛЕЧЕНИЕ АККАУНТА "HASKIN" (МИГРАЦИЯ) ---
+                    // АВТО-ЛЕЧЕНИЕ БАГОВ ПРОФИЛЯ
+                    let updates = {};
                     let needUpdate = false;
-                    const updates = {};
+                    if(!currentUser.inventory) { updates.inventory = []; needUpdate = true; currentUser.inventory = []; }
+                    if(!currentUser.pinnedEmojis) { updates.pinnedEmojis = {}; needUpdate = true; currentUser.pinnedEmojis = {}; }
+                    if(!currentUser.balance) { updates.balance = 0; needUpdate = true; currentUser.balance = 0; }
                     
-                    // Если нет инвентаря - создаем
-                    if(!currentUser.inventory) { updates.inventory = []; needUpdate = true; }
-                    
-                    // Если нет поля для закрепа смайлов - создаем
-                    if(!currentUser.pinnedEmojis) { 
-                        updates.pinnedEmojis = { slot1: null, slot2: null }; 
-                        needUpdate = true;
-                        // Применяем локально сразу, чтобы не ждать перезагрузки
-                        currentUser.pinnedEmojis = { slot1: null, slot2: null };
-                    }
-                    
-                    // Сохраняем "лекарство" в базу
-                    if(needUpdate) {
-                        await updateDoc(doc(db, 'users', u), updates);
-                        console.log("Аккаунт вылечен (Миграция успешна)");
-                    }
-                    // ----------------------------------------------------
+                    if(needUpdate) await updateDoc(doc(db, 'users', u), updates);
 
                     if(currentUser.isDeleted) throw new Error('Deleted');
                     if(currentUser.isBanned) throw new Error('Banned');
                     
                     document.getElementById('auth-screen').classList.add('hidden');
-                    document.getElementById('app-screen').classList.remove('hidden'); // Показываем интерфейс
+                    document.getElementById('app-screen').classList.remove('hidden');
                     if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
                     
                     app.checkStatuses();
@@ -212,7 +187,7 @@ window.app = {
                 } else throw new Error('No User');
             } else throw new Error('No Local User');
         } catch(e) {
-            console.log(e);
+            console.error(e);
             localStorage.clear();
             ui.toggleAuth('login');
         } finally {
@@ -220,7 +195,6 @@ window.app = {
         }
     },
 
-    // Авторизация
     genCaptcha: () => {
         const a=Math.floor(Math.random()*10), b=Math.floor(Math.random()*10);
         captchaAns = a+b;
@@ -238,7 +212,7 @@ window.app = {
         try {
             const r = doc(db, 'users', u);
             if((await getDoc(r)).exists()) return alert('Ник занят');
-            await setDoc(r, { username: u, name: n, password: p1, followers: [], following: [], blocked: [], isAdmin: false, isBanned: false, isMuted: false, requests: [], groups: [], bio: '', status: 'Новичок', avatar: '', createdAt: Date.now(), balance: 10, inventory: [], pinnedEmojis: { slot1: null, slot2: null } });
+            await setDoc(r, { username: u, name: n, password: p1, followers: [], following: [], blocked: [], isAdmin: false, isBanned: false, isMuted: false, requests: [], groups: [], bio: '', status: 'Новичок', avatar: '', createdAt: Date.now(), balance: 10, inventory: [], pinnedEmojis: {} });
             alert('Готово! Войдите.'); ui.toggleAuth('login');
         } catch(e) { alert('Ошибка'); }
     },
@@ -254,17 +228,13 @@ window.app = {
     },
     logout: () => { localStorage.clear(); location.reload(); },
 
-    // Уведомления
     readNotifs: async () => {
         const q = query(collection(db, 'users', currentUser.username, 'notifications'), where('read', '==', false));
         const s = await getDocs(q);
-        s.forEach(async d => {
-            await updateDoc(doc(db, 'users', currentUser.username, 'notifications', d.id), { read: true });
-        });
+        s.forEach(async d => { await updateDoc(doc(db, 'users', currentUser.username, 'notifications', d.id), { read: true }); });
         document.getElementById('notif-badge').style.display = 'none';
     },
 
-    // Посты
     openCreatePost: () => {
         document.getElementById('group-post-hint').classList.toggle('hidden', !activeGroupId);
         if(activeGroupId) document.getElementById('group-post-hint').innerText = "В группу: " + activeGroupId;
@@ -281,7 +251,7 @@ window.app = {
         };
         if(activeGroupId) p.groupId = activeGroupId;
         await addDoc(collection(db, 'posts'), p);
-        if(!isApproved) alert("Пост с фото отправлен на проверку.");
+        if(!isApproved) alert("Отправлено на проверку.");
         else {
              await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(5) });
              currentUser.balance += 5;
@@ -311,10 +281,9 @@ window.app = {
         const isLiked = likes.includes(currentUser.username);
         const verified = p.verified ? ICONS.verify : '';
         const status = p.status ? `<span class="status-pill">${p.status}</span>` : '';
-        const pending = !p.approved ? '<b style="color:red">[На проверке]</b>' : '';
+        const pending = !p.approved ? '<b style="color:red">[Mod]</b>' : '';
         const fakeUser = { avatar: p.avatar, authorAvatar: p.authorAvatar, inventory: p.authorInventory, pinnedEmojis: p.pinnedEmojis };
         return `<div class="card ${isTop?'top-post-banner':''}">
-            ${isTop ? '<div class="top-label">👑 ТОП ДНЯ</div>' : ''}
             <div class="post-header" onclick="ui.nav('profile','${p.author}')">
                 ${getAv(fakeUser, 'av-40', true)}
                 <div><div style="font-weight:bold; display:flex; align-items:center;">${p.name||p.author} ${verified} ${status}</div>
@@ -330,7 +299,6 @@ window.app = {
         </div>`;
     },
 
-    // --- ПРОФИЛЬ ---
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         const pc = document.getElementById('profile-posts');
@@ -387,7 +355,6 @@ window.app = {
                     else postsArr.forEach(p => { if(!p.groupId && p.approved) pc.innerHTML += app.renderPost(p); });
                 }
             } else {
-                 // Группы
                  const g = await getDoc(doc(db, 'groups', u));
                  if(g.exists()) {
                     activeGroupId = u; 
@@ -410,30 +377,7 @@ window.app = {
         }
     },
     
-    // --- ТОП БОГАЧЕЙ (БЕЗ ХАСКИНА) ---
-    loadRich: async () => {
-        const c = document.getElementById('rich-list'); c.innerHTML = '<div class="info-box">Загрузка...</div>';
-        const q = query(collection(db, 'users'), orderBy('balance', 'desc'), limit(20));
-        const s = await getDocs(q);
-        c.innerHTML = '';
-        let i = 1;
-        s.forEach(d => {
-            const u = d.data();
-            // 🛑 ФИЛЬТР: Убираем аккаунт Haskin из топа
-            if (u.username === 'haskin') return; 
-            
-            const medal = i===1?'🥇':(i===2?'🥈':(i===3?'🥉':''));
-            c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${u.username}')">
-                <div style="font-size:1.2em; width:30px;">${medal || i+'.'}</div>
-                ${getAv(u, 'av-40')}
-                <div style="flex:1;"><b>${u.name}</b><br>@${u.username}</div>
-                <b style="color:var(--gold-color)">${u.balance||0} HC</b>
-            </div>`;
-            i++;
-        });
-    },
-
-    // --- ЧАТЫ И МЕССЕНДЖЕР ---
+    // --- ПРОЧЕЕ ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML='<div class="info-box">Обновление...</div>';
         const friends = currentUser.following; 
@@ -459,14 +403,12 @@ window.app = {
             </div>`;
         });
     },
-
     loadChatRoom: async (partner) => {
         document.getElementById('chat-title').innerText = partner;
         curChat = partner;
         const chatId = [currentUser.username, partner].sort().join('_');
         const c = document.getElementById('msg-container');
         if(activeChatUnsub) activeChatUnsub();
-        
         const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('time', 'asc'), limit(50));
         activeChatUnsub = onSnapshot(q, s => {
             c.innerHTML = '';
@@ -474,14 +416,8 @@ window.app = {
                 const m = d.data();
                 const isMe = m.from === currentUser.username;
                 let html = '';
-                
                 if(m.type === 'game_invite') {
-                    // РЕНДЕР ПРИГЛАШЕНИЯ В ИГРУ
-                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" style="background:#cc00ff; color:white; border:none; cursor:pointer;" onclick="game.start('${d.id}', '${chatId}', ${m.target}, ${m.hint}, ${m.bet}, '${m.creator}')">
-                        <b>🎲 ИГРАТЬ</b><br>
-                        Ставка: ${m.bet} HC<br>
-                        ${m.finished ? `<small>Победил: ${m.winner}</small>` : '<small>Нажми чтобы начать</small>'}
-                    </div></div>`;
+                    html = `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" style="background:#cc00ff; color:white; border:none; cursor:pointer;" onclick="game.start('${d.id}', '${chatId}', ${m.target}, ${m.hint}, ${m.bet}, '${m.creator}')"><b>🎲 ИГРАТЬ</b><br>Ставка: ${m.bet} HC<br>${m.finished ? `<small>Победил: ${m.winner}</small>` : '<small>Нажми чтобы начать</small>'}</div></div>`;
                 } else {
                     let content = m.text;
                     if(m.image) content = `<img src="${m.image}" class="chat-img" onclick="window.open('${m.image}')">`;
@@ -492,7 +428,6 @@ window.app = {
             setTimeout(() => { c.scrollTop = c.scrollHeight; }, 100);
         });
     },
-
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value.trim();
         if(!txt && !tempChatImg) return;
@@ -500,15 +435,22 @@ window.app = {
         const msgData = { from: currentUser.username, time: Date.now() };
         if(txt) msgData.text = txt;
         if(tempChatImg) { msgData.image = tempChatImg; msgData.text = '📷 Фото'; }
-
         await addDoc(collection(db, 'chats', chatId, 'messages'), msgData);
         await setDoc(doc(db, 'chats', chatId), { lastMessage: msgData.text, lastTime: Date.now() }, { merge: true });
-        
-        document.getElementById('msg-input').value = '';
-        tempChatImg = null;
+        document.getElementById('msg-input').value = ''; tempChatImg = null;
     },
-
-    // --- ПРОЧИЕ ФУНКЦИИ ---
+    loadRich: async () => {
+        const c = document.getElementById('rich-list'); c.innerHTML = '<div class="info-box">Загрузка...</div>';
+        const q = query(collection(db, 'users'), orderBy('balance', 'desc'), limit(20));
+        const s = await getDocs(q); c.innerHTML = ''; let i = 1;
+        s.forEach(d => {
+            const u = d.data();
+            if (u.username === 'haskin') return;
+            const medal = i===1?'🥇':(i===2?'🥈':(i===3?'🥉':''));
+            c.innerHTML += `<div class="card user-row" onclick="ui.nav('profile','${u.username}')"><div style="font-size:1.2em; width:30px;">${medal || i+'.'}</div>${getAv(u, 'av-40')}<div style="flex:1;"><b>${u.name}</b><br>@${u.username}</div><b style="color:var(--gold-color)">${u.balance||0} HC</b></div>`;
+            i++;
+        });
+    },
     handleImg: el => { if(el.files[0]) compress(el.files[0], d=>{ tempImg=d; document.getElementById('preview-img-el').src=d; document.getElementById('post-img-preview').classList.remove('hidden'); }) },
     clearImg: () => { tempImg=null; document.getElementById('post-img-preview').classList.add('hidden'); },
     handleAvatar: (el, isGroup=false) => { if(el.files[0]) compress(el.files[0], d=>{ tempAv=d; if(isGroup) document.getElementById('edit-group-av-prev').src = d; }) },
@@ -527,21 +469,7 @@ window.app = {
     sendComment: async () => { const t=document.getElementById('comment-input').value; if(!t)return; await addDoc(collection(db,'posts',window.curPost,'comments'),{author:currentUser.username,text:t,time:Date.now()}); document.getElementById('comment-input').value=''; },
     delComment: async (id) => { if(confirm('Удалить?')) await deleteDoc(doc(db,'posts',window.curPost,'comments',id)); },
     delPost: async (id) => { if(confirm('Del?')) await deleteDoc(doc(db,'posts',id)); },
-    showFollowing: async (username) => {
-        const c = document.getElementById('users-list-content'); c.innerHTML = 'Загрузка...';
-        document.getElementById('users-list-modal').classList.remove('hidden');
-        const uDoc = await getDoc(doc(db, 'users', username)); if(!uDoc.exists()) return;
-        const list = uDoc.data().following || []; c.innerHTML = ''; if(list.length === 0) c.innerHTML = '<div class="info-box">Пусто</div>';
-        for(const login of list) {
-            const userRef = await getDoc(doc(db, 'users', login));
-            if(userRef.exists()) {
-                const u = userRef.data();
-                const isMe = username === currentUser.username;
-                const btn = isMe ? `<button class="action-btn btn-danger sm-btn" onclick="app.unfollowFromList('${u.username}')">Отписаться</button>` : '';
-                c.innerHTML += `<div class="user-list-item"><div class="user-row" onclick="ui.nav('profile', '${u.username}'); ui.closeModals()">${getAv(u, 'av-40')} <b>${u.name}</b></div>${btn}</div>`;
-            }
-        }
-    },
+    showFollowing: async (username) => { const c = document.getElementById('users-list-content'); c.innerHTML = 'Загрузка...'; document.getElementById('users-list-modal').classList.remove('hidden'); const uDoc = await getDoc(doc(db, 'users', username)); if(!uDoc.exists()) return; const list = uDoc.data().following || []; c.innerHTML = ''; if(list.length === 0) c.innerHTML = '<div class="info-box">Пусто</div>'; for(const login of list) { const userRef = await getDoc(doc(db, 'users', login)); if(userRef.exists()) { const u = userRef.data(); const isMe = username === currentUser.username; const btn = isMe ? `<button class="action-btn btn-danger sm-btn" onclick="app.unfollowFromList('${u.username}')">Отписаться</button>` : ''; c.innerHTML += `<div class="user-list-item"><div class="user-row" onclick="ui.nav('profile', '${u.username}'); ui.closeModals()">${getAv(u, 'av-40')} <b>${u.name}</b></div>${btn}</div>`; } } },
     unfollowFromList: async (target) => { if(confirm(`Отписаться от ${target}?`)) { await app.follow(target); app.showFollowing(currentUser.username); } },
     createGroup: async () => { const n=document.getElementById('group-name').value; const id='public_'+Date.now(); await setDoc(doc(db,'groups',id),{id,name:n,desc:document.getElementById('group-desc').value,owner:currentUser.username,members:[currentUser.username],avatar:''}); await updateDoc(doc(db,'users',currentUser.username),{groups:arrayUnion(id)}); ui.closeModals(); ui.nav('groups'); },
     loadGroups: async () => { const c=document.getElementById('groups-list'); const s=await getDocs(query(collection(db,'groups'),limit(20))); c.innerHTML=''; s.forEach(d=>{const g=d.data(); c.innerHTML+=`<div class="card user-row" onclick="ui.nav('profile','${g.id}')"><div class="avatar av-40" style="background:gray;color:white;display:flex;align-items:center;justify-content:center">${g.avatar?`<img src="${g.avatar}" class="avatar av-40">`:g.name[0]}</div><div><b>${g.name}</b><br><small>${g.members.length} уч.</small></div></div>`;}); },
@@ -557,6 +485,12 @@ window.app = {
 window.market = {
     tab: (t) => {
         document.querySelectorAll('.view#view-market .tab').forEach(e=>e.classList.remove('active'));
+        // Хакинг классов табов
+        const tabs = document.querySelectorAll('.view#view-market .tab');
+        if(t==='cases') tabs[0].classList.add('active');
+        if(t==='market') tabs[1].classList.add('active');
+        if(t==='inventory') tabs[2].classList.add('active');
+
         const c = document.getElementById('market-content'); c.innerHTML = '';
         if(t==='cases') {
             c.innerHTML = `<div class="card center-content" style="grid-column: 1 / -1;"><h2>📦 Обычный</h2><p>Цена: ${CASE_PRICE} HC</p><button class="action-btn" onclick="market.buyCase('normal')">Открыть</button></div><div class="card center-content legacy-box" style="grid-column: 1 / -1;"><h2>🗝️ LEGACY BOX</h2><p>Цена: ${LEGACY_PRICE} HC</p><small>Меньше мусора, больше шансов!</small><br><button class="action-btn" onclick="market.buyCase('legacy')">Открыть (500 HC)</button></div>`;
@@ -680,7 +614,7 @@ window.market = {
     }
 };
 
-// --- НОВАЯ ИГРА: БОЛЬШЕ-МЕНЬШЕ (ВИЗУАЛ) ---
+// --- GAME ---
 window.game = {
     openCreate: () => { document.getElementById('game-create-modal').classList.remove('hidden'); },
     create: async () => {
@@ -700,12 +634,9 @@ window.game = {
         if(currentUser.balance < bet) return alert('Нужна ставка ' + bet);
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
         currentUser.balance -= bet;
-
         activeGame = { msgId, chatId, target, hint, bet, creator };
         document.getElementById('game-ui').classList.remove('hidden');
         document.getElementById('game-hint-num').innerText = hint;
-        
-        // Запуск таймера
         let tl = 100;
         const timerCircle = document.getElementById('timer-progress');
         if(gameTimerInt) clearInterval(gameTimerInt);
@@ -713,10 +644,7 @@ window.game = {
             tl -= 1; 
             const offset = 283 - (tl / 100) * 283;
             timerCircle.style.strokeDashoffset = offset;
-            if(tl <= 0) {
-                clearInterval(gameTimerInt);
-                game.finish(false, 'Время вышло!');
-            }
+            if(tl <= 0) { clearInterval(gameTimerInt); game.finish(false, 'Время вышло!'); }
         }, 100); 
     },
     makeGuess: (choice) => {
@@ -732,10 +660,7 @@ window.game = {
         const g = activeGame;
         const winner = isWin ? currentUser.username : g.creator;
         const pot = g.bet * 2;
-        
         document.getElementById('game-ui').classList.add('hidden');
-        
-        // Экран результата
         const r = document.getElementById('game-result');
         r.classList.remove('hidden');
         document.getElementById('gr-title').innerText = isWin ? "ПОБЕДА" : "ПРОИГРЫШ";
@@ -743,25 +668,25 @@ window.game = {
         document.getElementById('gr-emoji').innerText = isWin ? "🤑" : "💀";
         document.getElementById('gr-real').innerText = g.target;
         document.getElementById('gr-msg').innerText = msg;
-
-        // Обновление баланса и статуса игры
         await updateDoc(doc(db, 'users', winner), { balance: increment(pot) });
         if(winner === currentUser.username) currentUser.balance += pot;
         await updateDoc(doc(db, 'chats', g.chatId, 'messages', g.msgId), { finished: true, winner: winner });
-        
         activeGame = null;
     },
-    close: () => {
-        document.getElementById('game-result').classList.add('hidden');
-    }
+    close: () => { document.getElementById('game-result').classList.add('hidden'); }
 };
 
-// --- АДМИНКА ---
+// --- ADMIN (RESTORED) ---
 window.admin = {
     tab: t => {
         const c = document.getElementById('adm-content');
         if(t==='mod') admin.loadModQueue();
-        if(t==='users') { document.querySelectorAll('.view#view-admin .tab').forEach(e=>e.classList.remove('active')); document.querySelector('.view#view-admin .tab:first-child').classList.add('active'); c.innerHTML = '<input class="search-bar" oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>'; }
+        if(t==='users') { 
+            // Переключение табов
+            document.querySelectorAll('.view#view-admin .tab').forEach(e=>e.classList.remove('active')); 
+            document.querySelector('.view#view-admin .tab:first-child').classList.add('active'); 
+            c.innerHTML = '<input class="search-bar" oninput="admin.s(this.value)" placeholder="Поиск юзера..."><div id="adm-list"></div>'; 
+        }
         if(t==='verify') { admin.loadV(); }
     },
     loadModQueue: async () => {
@@ -777,10 +702,34 @@ window.admin = {
     },
     approve: async (id) => { await updateDoc(doc(db, 'posts', id), { approved: true }); admin.loadModQueue(); },
     reject: async (id) => { await deleteDoc(doc(db, 'posts', id)); admin.loadModQueue(); },
-    s: async v => { const s = await getDocs(query(collection(db,'users'), where('username','>=',v), limit(5))); const c = document.getElementById('adm-list'); c.innerHTML=''; s.forEach(d=> { const u = d.data(); c.innerHTML += `<div class="card"><b>${u.username}</b> (${u.status})<br><button class="action-btn btn-danger sm-btn" onclick="admin.ban('${u.username}')">${u.isBanned?'Разбан':'Бан'}</button></div>`; }); },
-    loadV: async () => { /* stub */ },
+    s: async v => { 
+        const s = await getDocs(query(collection(db,'users'), where('username','>=',v), limit(5))); 
+        const c = document.getElementById('adm-list'); c.innerHTML=''; 
+        s.forEach(d=> { 
+            const u = d.data(); 
+            c.innerHTML += `<div class="card">
+                <b>${u.username}</b> (${u.status})<br>
+                <button class="action-btn btn-danger sm-btn" onclick="admin.ban('${u.username}')">${u.isBanned?'Разбан':'Бан'}</button>
+                <button class="action-btn btn-sec sm-btn" onclick="admin.mute('${u.username}')">${u.isMuted?'Unmute':'Mute'}</button>
+                <button class="action-btn sm-btn" onclick="admin.warn('${u.username}')">Варн</button>
+                <button class="action-btn btn-danger sm-btn" onclick="admin.delAcc('${u.username}')">Удалить</button>
+                <button class="action-btn btn-gold sm-btn" onclick="admin.toggleAdmin('${u.username}', ${u.isAdmin})">${u.isAdmin?'Снять Адм':'Дать Адм'}</button>
+            </div>`; 
+        }); 
+    },
+    loadV: async () => { 
+        const s = await getDocs(query(collection(db,'system','verifications','requests'), where('status','==','pending'))); 
+        const c = document.getElementById('adm-content'); c.innerHTML = ''; if(s.empty) c.innerHTML='Нет заявок'; 
+        s.forEach(d => { const r = d.data(); c.innerHTML += `<div class="card"><b>${r.username}</b>: ${r.realname}<br>${r.reason}<br><button class="action-btn" onclick="admin.okV('${d.id}','${r.username}')">✅</button> <button class="action-btn btn-danger" onclick="admin.noV('${d.id}')">❌</button></div>`; }); 
+    },
+    okV: async (id, u) => { await updateDoc(doc(db,'users',u), {isVerified:true}); await updateDoc(doc(db,'system','verifications','requests',id), {status:'approved'}); alert('OK'); admin.loadV(); },
+    noV: async (id) => { await updateDoc(doc(db,'system','verifications','requests',id), {status:'rejected'}); alert('Отклонено'); admin.loadV(); },
     ban: async u => { if(confirm('Бан/Разбан?')) { const curr = (await getDoc(doc(db,'users',u))).data().isBanned; await updateDoc(doc(db,'users',u), {isBanned:!curr}); } },
-    stats: async () => { /* stub */ }
+    mute: async u => { const curr = (await getDoc(doc(db,'users',u))).data().isMuted; await updateDoc(doc(db,'users',u), {isMuted:!curr}); alert('Done'); },
+    warn: async u => { const r = prompt('Причина:'); if(!r) return; const chatId = ['System', u].sort().join('_'); await addDoc(collection(db, 'chats', chatId, 'messages'), { from: 'System', text: "⚠️ ВАРН: "+r, time: Date.now() }); await addDoc(collection(db, 'users', u, 'notifications'), { type: 'msg', text: 'Варн!', from: 'System', time: Date.now(), read: false }); alert('Отправлено'); },
+    delAcc: async u => { if(confirm(`Удалить ${u}?`)) { await updateDoc(doc(db, 'users', u), { isDeleted: true }); alert('Удален'); } },
+    toggleAdmin: async (u, current) => { if(confirm(current ? "Снять права?" : "Дать права?")) { await updateDoc(doc(db, 'users', u), { isAdmin: !current }); alert('Готово'); } },
+    stats: async () => { const u = await getDocs(collection(db, 'users')); document.getElementById('adm-stats').innerHTML = `Всего: ${u.size}`; }
 };
 
 app.init();
