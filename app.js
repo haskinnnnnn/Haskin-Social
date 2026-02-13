@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, query, orderBy, where, limit, increment, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// --- КОНФИГ FIREBASE (Вставь свой!) ---
+// --- ВСТАВЬ СВОЙ КОНФИГ ---
 const firebaseConfig = {
     apiKey: "AIzaSyBCcBSZx6kAFGwTscJlfDuiQILGZDaVN4g",
     authDomain: "mysocnet-34ee9.firebaseapp.com",
@@ -15,21 +15,17 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-// --- ГЛОБАЛЫ (Привязка к window, чтобы работали onclick) ---
+// --- ГЛОБАЛЫ ---
 window.currentUser = null;
 let listeners = {};
 let tempImg = null;
 let tempChatImg = null;
+let tempAv = null;
 let activeGame = null;
 let gameTimerInt = null;
 let activeGroupId = null;
-
-const ITEMS_DB = {
-    legendary: ['🤡', '👻', '👺', '💀'],
-    epic: ['👑', '🦄', '🐲', '👽', '💎', '💸'],
-    rare: ['😳', '🥸', '🤔', '😍', '🥶', '🤬', '😈'],
-    common: ['💩', '🤖', '👾', '🎃', '😺', '🙉', '🦊', '🌚', '🍕', '🍔', '🍟', '🌭', '🍿', '🧂', '🥓', '🥚', '🍳', '🧇', '🥞', '🧈', '🍞', '🥐', '🥨', '🥯', '🥖', '🧀', '🥗', 'pita', '🥪', '🌮', '🌯', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯']
-};
+let curChat = null;
+let activeChatUnsub = null;
 
 const compress = (file, cb) => {
     const r = new FileReader(); r.readAsDataURL(file);
@@ -40,18 +36,11 @@ const getAv = (u, sz, addFrame=false) => {
     if(!u) return '';
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '', satellites = '';
-    
-    // Безопасный доступ
     const inv = u.inventory || u.authorInventory || [];
     const pins = u.pinnedEmojis || {};
-
-    if(addFrame && inv.length > 0) {
-        if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
-        else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
-    }
+    if(addFrame && inv.length > 0) { if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary'; }
     if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
     if(pins.slot2) satellites += `<span class="sat-icon sat-2">${pins.slot2}</span>`;
-
     return `<div class="avatar-wrap"><img src="${src}" class="avatar ${sz} ${frameClass}">${satellites}</div>`;
 };
 
@@ -60,9 +49,8 @@ const parseTime = ts => new Date(ts).toLocaleDateString();
 // --- UI ---
 window.ui = {
     nav: (v, p) => {
-        if(listeners.chat) listeners.chat(); // Unsubscribe chat
+        if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) p = currentUser.username;
-        
         document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
         document.querySelectorAll('.modal-overlay').forEach(e => e.classList.add('hidden'));
@@ -73,13 +61,11 @@ window.ui = {
             const el = document.getElementById('view-'+(v==='admin'?'admin':v));
             if(el) el.classList.add('active');
         }
-
-        // Подсветка меню (костыль для SVG иконок)
+        
         const map = {'feed':0, 'market':1, 'search':2, 'groups':3, 'chats':4, 'notifs':5, 'rich':6, 'profile':7, 'settings':8};
         const items = document.querySelectorAll('.nav-item');
         if(map[v] !== undefined && items[map[v]]) items[map[v]].classList.add('active');
 
-        // Логика загрузки
         if(v==='feed') window.app.loadFeed();
         if(v==='chats') window.app.loadChats();
         if(v==='market') window.market.tab('cases');
@@ -87,7 +73,8 @@ window.ui = {
         if(v==='profile') window.app.loadProfile(p);
         if(v==='chat-room') window.app.loadChatRoom(p);
         if(v==='groups') window.app.loadGroups();
-        if(v==='admin') { window.admin.tab('users'); }
+        if(v==='admin') window.admin.tab('users');
+        if(v==='settings' && currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
     },
     closeModals: () => {
         document.querySelectorAll('.modal-overlay').forEach(e => e.classList.add('hidden'));
@@ -95,19 +82,18 @@ window.ui = {
         document.getElementById('case-spinner').classList.remove('hidden');
         document.getElementById('case-close-btn').classList.add('hidden');
     },
-    toggleAuth: (mode) => {
-        document.getElementById('login-box').classList.toggle('hidden', mode!=='login');
-        document.getElementById('reg-box').classList.toggle('hidden', mode!=='reg');
-    },
-    togglePass: (id) => {
-        const el = document.getElementById(id);
-        el.type = el.type==='password'?'text':'password';
-    },
+    toggleAuth: (mode) => { document.getElementById('login-box').classList.toggle('hidden', mode!=='login'); document.getElementById('reg-box').classList.toggle('hidden', mode!=='reg'); },
+    togglePass: (id) => { const el = document.getElementById(id); el.type = el.type==='password'?'text':'password'; },
     setTab: (t, btn) => {
         document.querySelectorAll('.set-page').forEach(e=>e.classList.add('hidden'));
         document.getElementById('set-'+t).classList.remove('hidden');
         document.querySelectorAll('#view-settings .tab').forEach(e=>e.classList.remove('active'));
         btn.classList.add('active');
+    },
+    theme: () => {
+        const d = document.getElementById('theme-switch').checked;
+        document.body.style.background = d ? '#0f0f0f' : '#fff';
+        document.body.style.color = d ? '#fff' : '#000';
     }
 };
 
@@ -119,15 +105,14 @@ window.app = {
             const s = await getDoc(doc(db, 'users', u));
             if(s.exists()) {
                 currentUser = s.data();
-                
-                // --- FIX HASKIN & OLD ACCOUNTS ---
+                // FIXES
                 let fix = {};
                 if(!currentUser.inventory) fix.inventory = [];
                 if(!currentUser.pinnedEmojis) fix.pinnedEmojis = {};
-                if(Object.keys(fix).length > 0) {
-                    await updateDoc(doc(db, 'users', u), fix);
-                    currentUser = {...currentUser, ...fix}; 
-                }
+                if(!currentUser.balance) fix.balance = 0;
+                if(Object.keys(fix).length > 0) { await updateDoc(doc(db, 'users', u), fix); currentUser = {...currentUser, ...fix}; }
+                
+                if(currentUser.isBanned) return alert('BANNED');
                 
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
@@ -142,6 +127,7 @@ window.app = {
         const p = document.getElementById('login-pass').value;
         const s = await getDoc(doc(db, 'users', u));
         if(s.exists() && s.data().password === p) {
+            if(s.data().isBanned) return alert('BAN');
             localStorage.setItem('user', u);
             location.reload();
         } else alert('Error');
@@ -161,13 +147,26 @@ window.app = {
     clearImg: () => { tempImg = null; document.getElementById('post-img-preview').classList.add('hidden'); },
     createPost: async () => {
         const txt = document.getElementById('post-text').value;
+        const btnText = document.getElementById('post-btn-text').value;
+        const btnLink = document.getElementById('post-btn-link').value;
+        
         if(!txt && !tempImg) return;
+        
+        // AUTO MODERATION: If link or image, send to mod queue
+        const needsMod = (tempImg || btnLink) ? true : false;
+        
         await addDoc(collection(db, 'posts'), {
-            author: currentUser.username, name: currentUser.name, content: txt, image: tempImg, likes: [], createdAt: Date.now(),
-            approved: !tempImg, // Auto-approve text
+            author: currentUser.username, name: currentUser.name, content: txt, image: tempImg, 
+            actionBtn: (btnText && btnLink) ? {text: btnText, link: btnLink} : null,
+            likes: [], createdAt: Date.now(),
+            approved: !needsMod,
             authorInventory: currentUser.inventory, pinnedEmojis: currentUser.pinnedEmojis,
             groupId: activeGroupId
         });
+        
+        if(needsMod) alert('Отправлено на модерацию');
+        else alert('Опубликовано');
+        
         document.getElementById('post-text').value = ''; window.app.clearImg(); window.ui.closeModals();
         if(activeGroupId) window.app.loadProfile(activeGroupId);
     },
@@ -180,6 +179,7 @@ window.app = {
                 const p = d.data(); p.id = d.id;
                 if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return;
                 if(p.groupId) return;
+                if(currentUser.blocked && currentUser.blocked.includes(p.author)) return;
                 html += window.app.renderPost(p);
             });
             document.getElementById('feed-content').innerHTML = html;
@@ -187,15 +187,20 @@ window.app = {
     },
     renderPost: (p) => {
         const fakeUser = { avatar: p.avatar, authorAvatar: p.authorAvatar, inventory: p.authorInventory, pinnedEmojis: p.pinnedEmojis };
+        // ACTION BUTTON RENDER
+        const actionBtnHtml = p.actionBtn ? `<a href="${p.actionBtn.link}" target="_blank" class="action-btn-link">${p.actionBtn.text}</a>` : '';
+        
         return `<div class="card">
             <div class="user-row" onclick="window.ui.nav('profile','${p.author}')">
                 ${getAv(fakeUser, 'av-40', true)}
-                <div><b>${p.name}</b><br><small>${parseTime(p.createdAt)} ${!p.approved?'[MOD]':''}</small></div>
+                <div><b>${p.name}</b> ${p.verified?ICONS.verify:''}<br><small>${parseTime(p.createdAt)} ${!p.approved?'[MOD]':''}</small></div>
             </div>
             <div style="margin:10px 0; white-space:pre-wrap;">${p.content}</div>
-            ${p.image ? `<img src="${p.image}" style="width:100%; border-radius:10px;">` : ''}
+            ${p.image ? `<img src="${p.image}" class="post-img">` : ''}
+            ${actionBtnHtml}
             <div class="user-row" style="margin-top:10px; justify-content:space-between;">
                 <button class="action-btn btn-sec" onclick="window.app.like('${p.id}', '${p.author}')">❤️ ${p.likes?.length||0}</button>
+                <button class="action-btn btn-sec" onclick="window.app.openComs('${p.id}')">💬</button>
                 ${currentUser.isAdmin || p.author===currentUser.username ? `<button class="action-btn btn-danger sm-btn" onclick="window.app.delPost('${p.id}')">Del</button>` : ''}
             </div>
         </div>`;
@@ -213,18 +218,21 @@ window.app = {
             const user = s.data();
             const isMe = u === currentUser.username;
             const isFollow = currentUser.following.includes(u);
+            const isBlocked = currentUser.blocked && currentUser.blocked.includes(u);
             
             c.innerHTML = `<div class="card center-content">
                 ${getAv(user, 'av-80', true)}
-                <h2>${user.name}</h2>
+                <h2>${user.name} ${user.isVerified?ICONS.verify:''}</h2>
                 <div style="color:gray">@${user.username}</div>
                 <div style="display:flex; justify-content:center; gap:20px; margin:10px;">
                     <b>${user.followers?.length||0} подп.</b>
                     <b>${user.following?.length||0} подписки</b>
                 </div>
                 ${isMe ? `<button class="action-btn sm-btn" onclick="window.ui.nav('settings')">Ред.</button>` : 
+                  (isBlocked ? `<button class="action-btn btn-sec" onclick="window.app.block('${u}', false)">Разблокировать</button>` :
                   `<button class="action-btn sm-btn" onclick="window.app.follow('${u}')">${isFollow?'Отписаться':'Подписаться'}</button> 
-                   <button class="action-btn sm-btn btn-sec" onclick="window.ui.nav('chat-room','${u}')">Чат</button>`}
+                   <button class="action-btn sm-btn btn-sec" onclick="window.ui.nav('chat-room','${u}')">Чат</button>
+                   <button class="action-btn sm-btn btn-danger" onclick="window.app.block('${u}', true)">Блок</button>`)}
             </div>`;
             
             const q = query(collection(db, 'posts'), where('author', '==', u));
@@ -239,7 +247,11 @@ window.app = {
             if(g.exists()) {
                 activeGroupId = u;
                 const group = g.data();
-                c.innerHTML = `<div class="card center-content"><h2>${group.name}</h2><p>${group.desc}</p><button class="action-btn" onclick="window.app.openCreatePost()">Пост</button></div>`;
+                const isOwner = group.owner === currentUser.username;
+                c.innerHTML = `<div class="card center-content"><h2>${group.name}</h2><p>${group.desc}</p>
+                <button class="action-btn" onclick="window.app.openCreatePost()">Пост</button>
+                ${isOwner ? `<button class="action-btn btn-sec sm-btn" onclick="window.app.editGroup('${u}')">Ред</button>` : ''}
+                </div>`;
                 const q = query(collection(db, 'posts'), where('groupId', '==', u));
                 const ps = await getDocs(q);
                 ps.forEach(d => pc.innerHTML += window.app.renderPost({...d.data(), id:d.id}));
@@ -247,12 +259,12 @@ window.app = {
         }
     },
     
-    // CHATS & ACTIONS
+    // ACTIONS
     like: async (id, auth) => {
         const r = doc(db, 'posts', id);
         const p = (await getDoc(r)).data();
         if(p.likes.includes(currentUser.username)) await updateDoc(r, {likes: arrayRemove(currentUser.username)});
-        else await updateDoc(r, {likes: arrayUnion(currentUser.username)});
+        else { await updateDoc(r, {likes: arrayUnion(currentUser.username)}); window.app.notify(auth, 'like', 'Лайк'); }
     },
     follow: async (u) => {
         const me = doc(db, 'users', currentUser.username);
@@ -265,7 +277,14 @@ window.app = {
             await updateDoc(me, {following: arrayUnion(u)});
             await updateDoc(him, {followers: arrayUnion(currentUser.username)});
             currentUser.following.push(u);
+            window.app.notify(u, 'sub', 'Подписался');
         }
+        window.app.loadProfile(u);
+    },
+    block: async (u, doBlock) => {
+        const me = doc(db, 'users', currentUser.username);
+        if(doBlock) { await updateDoc(me, {blocked: arrayUnion(u)}); if(!currentUser.blocked) currentUser.blocked=[]; currentUser.blocked.push(u); }
+        else { await updateDoc(me, {blocked: arrayRemove(u)}); currentUser.blocked = currentUser.blocked.filter(x=>x!==u); }
         window.app.loadProfile(u);
     },
     delPost: async (id) => { if(confirm('Del?')) await deleteDoc(doc(db, 'posts', id)); window.ui.nav('feed'); },
@@ -281,16 +300,20 @@ window.app = {
         document.getElementById('chat-title').innerText = u;
         const id = [currentUser.username, u].sort().join('_');
         const c = document.getElementById('msg-container');
-        if(listeners.chat) listeners.chat();
-        listeners.chat = onSnapshot(query(collection(db, 'chats', id, 'messages'), orderBy('time','asc')), s => {
+        if(activeChatUnsub) activeChatUnsub();
+        const q = query(collection(db, 'chats', id, 'messages'), orderBy('time','asc'));
+        activeChatUnsub = onSnapshot(q, s => {
             c.innerHTML = '';
             s.forEach(d => {
                 const m = d.data();
                 const isMe = m.from === currentUser.username;
+                let content = m.text;
+                if(m.image) content = `<img src="${m.image}" class="chat-img" onclick="window.open('${m.image}')">`;
+                
                 if(m.type === 'game_invite') {
-                    c.innerHTML += `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" onclick="window.game.start('${d.id}','${id}',${m.target},${m.hint},${m.bet},'${m.creator}')">🎮 ИГРАТЬ (${m.bet} HC)</div></div>`;
+                    c.innerHTML += `<div class="msg-row ${isMe?'me':'other'}"><div class="msg game" onclick="window.game.start('${d.id}','${id}',${m.target},${m.hint},${m.bet},'${m.creator}')">🎮 ИГРАТЬ (${m.bet} HC)<br>${m.finished ? 'Завершено':''}</div></div>`;
                 } else {
-                    c.innerHTML += `<div class="msg-row ${isMe?'me':'other'}"><div class="msg ${isMe?'me':'other'}">${m.text}</div></div>`;
+                    c.innerHTML += `<div class="msg-row ${isMe?'me':'other'}"><div class="msg ${isMe?'me':'other'}">${content}</div></div>`;
                 }
             });
             c.scrollTop = c.scrollHeight;
@@ -298,11 +321,14 @@ window.app = {
     },
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value;
-        if(!txt) return;
+        if(!txt && !tempChatImg) return;
         const id = [currentUser.username, curChat].sort().join('_');
-        await addDoc(collection(db, 'chats', id, 'messages'), { from: currentUser.username, text: txt, time: Date.now() });
-        document.getElementById('msg-input').value = '';
+        const d = { from: currentUser.username, text: txt, time: Date.now() };
+        if(tempChatImg) { d.image = tempChatImg; d.text = '📷 Фото'; }
+        await addDoc(collection(db, 'chats', id, 'messages'), d);
+        document.getElementById('msg-input').value = ''; tempChatImg = null;
     },
+    handleChatImg: (el) => { if(el.files[0]) compress(el.files[0], d => { tempChatImg = d; window.app.sendMsg(); }); },
     loadRich: async () => {
         const c = document.getElementById('rich-list'); c.innerHTML = '';
         const s = await getDocs(query(collection(db, 'users'), orderBy('balance', 'desc'), limit(10)));
@@ -324,121 +350,20 @@ window.app = {
         const s = await getDocs(query(collection(db,'groups'), limit(20)));
         s.forEach(d => c.innerHTML += `<div class="card" onclick="window.ui.nav('profile','${d.id}')"><b>${d.data().name}</b></div>`);
     },
-    handleAvatar: (el) => { if(el.files[0]) compress(el.files[0], d => { tempAv = d; }); },
-    saveProfile: async () => {
-        const upd = { name: document.getElementById('edit-name').value, bio: document.getElementById('edit-bio').value };
+    editGroup: async (gid) => { 
+        const g = (await getDoc(doc(db,'groups',gid))).data(); 
+        document.getElementById('edit-group-name').value=g.name; 
+        document.getElementById('edit-group-desc').value=g.desc; 
+        document.getElementById('edit-group-id').value=gid; 
+        document.getElementById('edit-group-modal').classList.remove('hidden');
+    },
+    saveGroupChanges: async () => {
+        const gid = document.getElementById('edit-group-id').value;
+        const upd = { name: document.getElementById('edit-group-name').value, desc: document.getElementById('edit-group-desc').value };
         if(tempAv) upd.avatar = tempAv;
-        await updateDoc(doc(db, 'users', currentUser.username), upd);
-        location.reload();
-    }
-};
-
-// --- MARKET ---
-window.market = {
-    tab: (t) => {
-        const c = document.getElementById('market-content'); c.innerHTML = '';
-        document.querySelectorAll('.view#view-market .tab').forEach(e=>e.classList.remove('active'));
-        if(t==='cases') {
-            c.innerHTML = `<div class="card center-content"><h2>📦 Кейс</h2><button class="action-btn" onclick="window.market.buyCase('normal')">100 HC</button></div>`;
-        }
-        if(t==='inventory') {
-            (currentUser.inventory||[]).forEach(i => {
-                c.innerHTML += `<div class="market-item" onclick="window.market.openSell('${i.id}','${i.emoji}','${i.rarity}')"><span style="font-size:30px">${i.emoji}</span></div>`;
-            });
-        }
-        if(t==='market') window.market.load();
+        await updateDoc(doc(db,'groups',gid), upd);
+        window.ui.closeModals(); window.app.loadProfile(gid);
     },
-    buyCase: async (t) => {
-        if(currentUser.balance < 100) return alert('No money');
-        await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-100) });
-        const item = { id: Date.now()+'', emoji: '😎', rarity: 'common' }; // Simplified for stability
-        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(item) });
-        alert(`Выпало: ${item.emoji}`); currentUser.balance -= 100;
-    },
-    openSell: (id, em, r) => {
-        document.getElementById('sell-item-id').value = id;
-        document.getElementById('sell-item-emoji').value = em;
-        document.getElementById('sell-modal').classList.remove('hidden');
-    },
-    confirmSell: async () => {
-        const p = parseInt(document.getElementById('sell-price').value);
-        const id = document.getElementById('sell-item-id').value;
-        const em = document.getElementById('sell-item-emoji').value;
-        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayRemove({id, emoji:em, rarity:'common'}) }); // Need exact obj matching usually, simplifying
-        // Note: Removing form array in Firestore requires exact object match. 
-        // For robustness in this "final" fix, I'm just adding to market without removing to prevent data loss if match fails.
-        // In a real fix, we'd find the index.
-        await addDoc(collection(db, 'market_items'), { seller: currentUser.username, emoji: em, price: p, itemId: id });
-        window.ui.closeModals();
-    },
-    pinItem: async (slot) => {
-        const em = document.getElementById('sell-item-emoji').value;
-        const upd = {}; upd[`pinnedEmojis.${slot}`] = em;
-        await updateDoc(doc(db, 'users', currentUser.username), upd);
-        alert('Pinned'); window.ui.closeModals();
-    },
-    load: async () => {
-        const c = document.getElementById('market-content'); c.innerHTML='';
-        const s = await getDocs(collection(db, 'market_items'));
-        s.forEach(d => {
-            const i = d.data();
-            c.innerHTML += `<div class="market-item" onclick="window.market.buy('${d.id}',${i.price},'${i.emoji}')">${i.emoji}<br>${i.price}</div>`;
-        });
-    },
-    buy: async (did, p, em) => {
-        if(currentUser.balance < p) return alert('No money');
-        await deleteDoc(doc(db, 'market_items', did));
-        await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-p), inventory: arrayUnion({id:Date.now()+'', emoji:em, rarity:'common'}) });
-        alert('Куплено'); window.market.tab('inventory');
-    }
-};
-
-// --- GAME ---
-window.game = {
-    openCreate: () => { document.getElementById('game-create-modal').classList.remove('hidden'); },
-    create: async () => {
-        const num = parseInt(document.getElementById('game-number').value);
-        const bet = parseInt(document.getElementById('game-bet').value);
-        const id = [currentUser.username, curChat].sort().join('_');
-        let hint = num + 2; 
-        await addDoc(collection(db, 'chats', id, 'messages'), { type: 'game_invite', creator: currentUser.username, target: num, hint, bet, time: Date.now() });
-        window.ui.closeModals();
-    },
-    start: (mid, cid, target, hint, bet, creator) => {
-        activeGame = { mid, cid, target, hint, bet, creator };
-        document.getElementById('game-ui').classList.remove('hidden');
-        document.getElementById('game-hint-num').innerText = hint;
-    },
-    makeGuess: (ch) => {
-        const w = (ch==='more' && activeGame.target > activeGame.hint) || (ch==='less' && activeGame.target < activeGame.hint);
-        document.getElementById('game-ui').classList.add('hidden');
-        const r = document.getElementById('game-result'); r.classList.remove('hidden');
-        document.getElementById('gr-title').innerText = w ? "WIN" : "LOSE";
-        document.getElementById('gr-real').innerText = activeGame.target;
-        if(w) {
-            updateDoc(doc(db, 'users', currentUser.username), { balance: increment(activeGame.bet) });
-        }
-    },
-    close: () => { document.getElementById('game-result').classList.add('hidden'); }
-};
-
-// --- ADMIN ---
-window.admin = {
-    tab: (t) => {
-        const c = document.getElementById('adm-content'); c.innerHTML='';
-        if(t==='users') {
-            c.innerHTML = '<input oninput="window.admin.search(this.value)">';
-        }
-    },
-    search: async (v) => {
-        const s = await getDocs(query(collection(db, 'users'), where('username', '>=', v), limit(5)));
-        const c = document.getElementById('adm-content');
-        s.forEach(d => {
-            const u = d.data();
-            c.innerHTML += `<div class="card">${u.username} <button onclick="window.admin.ban('${u.username}')">Ban</button></div>`;
-        });
-    },
-    ban: async (u) => { await updateDoc(doc(db, 'users', u), { isBanned: true }); alert('Banned'); }
-};
-
-window.app.init();
+    handleAvatar: (el, isGroup) => { if(el.files[0]) compress(el.files[0], d => { tempAv = d; if(isGroup) document.getElementById('edit-group-av-prev').src=d; }); },
+    saveProfile: async () => {
+    
