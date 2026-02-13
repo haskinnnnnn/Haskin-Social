@@ -1,40 +1,44 @@
-body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #000; height: 100dvh; display: flex; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #fff; color: #000; height: 100dvh; display: flex; overflow: hidden; }
 .hidden { display: none !important; }
-.icon { width: 24px; height: 24px; }
+.icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* LAYOUT */
 #app-screen { display: flex; width: 100%; height: 100%; }
-.sidebar { width: 260px; background: #f7f9fc; border-right: 1px solid #ddd; padding: 20px; display: flex; flex-direction: column; }
-.main { flex: 1; background: #fff; overflow-y: auto; display: flex; flex-direction: column; height: 100%; padding-bottom: 80px; }
+.sidebar { width: 260px; background: #f7f9fc; border-right: 1px solid #ddd; padding: 20px; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;}
+.main { flex: 1; background: #fff; overflow-y: auto; display: flex; flex-direction: column; height: 100%; padding-bottom: 80px; box-sizing: border-box; }
 .view { display: none; padding: 15px; }
 .view.active { display: block; }
 
 /* NAV */
-.nav-item { padding: 12px; margin-bottom: 5px; cursor: pointer; border-radius: 10px; }
+.nav-item { padding: 12px; margin-bottom: 5px; cursor: pointer; border-radius: 10px; display: flex; align-items: center; gap: 10px; color: #333; }
 .nav-item:hover { background: #eee; }
 .nav-item.active { background: #e3f2fd; color: #3390ec; font-weight: bold; }
 
 /* UI */
-.action-btn { padding: 10px 20px; border-radius: 10px; background: #3390ec; color: white; border: none; cursor: pointer; font-weight: bold; }
+.action-btn { padding: 10px 20px; border-radius: 10px; background: #3390ec; color: white; border: none; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 5px;}
+.action-btn:active { transform: scale(0.95); }
 .btn-danger { background: #ff4444; }
 .btn-sec { background: #eee; color: black; }
+.btn-gold { background: gold; color: black; }
 .full-width { width: 100%; margin-top: 5px; }
-input, textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+.sm-btn { padding: 5px 10px; font-size: 12px; }
+input, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: inherit; }
 
-/* CARDS */
+/* CARDS & POSTS */
 .card { border: 1px solid #eee; padding: 15px; border-radius: 12px; margin-bottom: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 .user-row { display: flex; align-items: center; gap: 10px; }
+.post-img { width: 100%; border-radius: 10px; margin-top: 10px; }
+.action-btn-link { display: block; width: 100%; padding: 12px; margin-top: 10px; background: #e3f2fd; color: #3390ec; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold; border: 1px solid #3390ec; }
 
 /* AVATAR & SATELLITES */
-.avatar-wrap { position: relative; display: inline-block; width: 40px; height: 40px; }
-.avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid transparent; }
+.avatar-wrap { position: relative; display: inline-block; width: fit-content; height: fit-content; flex-shrink: 0; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid transparent; display: block; }
 .av-80 { width: 80px; height: 80px; } 
-.avatar-wrap:has(.av-80) { width: 80px; height: 80px; }
-
-.sat-icon { position: absolute; font-size: 14px; z-index: 5; pointer-events: none; line-height: 1; }
-.av-80 + .sat-icon { font-size: 24px; } /* Bigger stats for profile */
+.sat-icon { position: absolute; font-size: 14px; z-index: 5; pointer-events: none; line-height: 1; filter: drop-shadow(0 0 2px white); }
+.av-80 + .sat-icon { font-size: 24px; }
 .sat-1 { top: -2px; right: -2px; }
 .sat-2 { bottom: -2px; left: -2px; }
+.frame-legendary { border-color: gold; box-shadow: 0 0 5px gold; }
 
 /* GAME UI */
 #game-ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #444; z-index: 5000; display: flex; flex-direction: column; }
@@ -56,28 +60,37 @@ input, textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #
 .game-arrow-up { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 10px solid black; }
 
 #game-result { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 6000; display: flex; align-items: center; justify-content: center; color: white; text-align: center; }
-.result-box { background: #333; padding: 30px; border-radius: 20px; border: 2px solid #555; }
+.result-box { background: #333; padding: 30px; border-radius: 20px; border: 2px solid #555; text-align: center; }
 
 /* CHAT ROOM */
 .full-screen-view { position: fixed !important; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 2000; display: flex; flex-direction: column; }
-.chat-header { padding: 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; align-items: center; height: 50px; }
+.chat-header { padding: 10px; background: #fff; border-bottom: 1px solid #eee; display: flex; align-items: center; height: 50px; gap: 10px; flex-shrink: 0; }
 .msg-area { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
-.chat-input-bar { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 10px; background: #fff; }
+.chat-input-bar { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 10px; background: #fff; flex-shrink: 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
 .msg { padding: 10px; border-radius: 10px; max-width: 70%; word-wrap: break-word; }
 .msg.me { align-self: flex-end; background: #e3f2fd; }
 .msg.other { align-self: flex-start; background: #f1f1f1; }
-.msg.game { align-self: center; background: #d533ff; color: white; text-align: center; cursor: pointer; width: 100%; }
+.msg.game { align-self: center; background: #d533ff; color: white; text-align: center; cursor: pointer; width: 100%; border: 2px solid white; }
+.chat-img { max-width: 200px; border-radius: 10px; display: block; }
 
 /* MODALS */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; display: flex; justify-content: center; align-items: center; }
-.modal { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; }
+.modal { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column;}
 .modal-head { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 15px; font-size: 1.2em; }
+.full-height-modal { height: 90%; }
 
 .fab { position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; background: #3390ec; border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 1000; }
+.accordion { background: #eee; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 5px;}
+
+/* MARKET */
+.market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+.market-item { text-align: center; cursor: pointer; border: 1px solid #eee; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; height: 100px; }
 
 @media (max-width: 768px) {
-    .sidebar { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; justify-content: space-around; border-top: 1px solid #ddd; padding: 0; z-index: 100; }
+    .sidebar { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; flex-direction: row; justify-content: space-around; border-top: 1px solid #ddd; padding: 0; z-index: 100; align-items: center;}
     .desk-label { display: none; }
     .fab { bottom: 70px; }
     .main { padding-bottom: 70px; }
-}
+    .nav-item { flex-direction: column; gap: 2px; font-size: 10px; padding: 5px; margin: 0; background: none !important;}
+                  }
+       
