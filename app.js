@@ -18,20 +18,21 @@ const db = getFirestore(fbApp);
 // --- ГЛОБАЛЫ ---
 window.currentUser = null;
 let listeners = {};
-let tempImg = null;       // Для постов
-let tempChatImg = null;   // Для чата
-let tempAv = null;        // Для аватарки
-let activeGame = null;    // Текущая игра
+let tempImg = null;       
+let tempChatImg = null;   
+let tempAv = null;        
+let activeGame = null;    
 let gameTimerInt = null;
 let activeGroupId = null;
-let curChat = null;       // ID собеседника
+let curChat = null;       
 let activeChatUnsub = null;
-let paintingColor = 'black'; // Цвет баллончика
+let selectedSlot = null; // Для закрепа эмодзи
 
-// База предметов (для генерации)
+// БАЗА ПРЕДМЕТОВ
 const ITEMS_DB = {
-    tools: ['🔫', '🥛', '🎨', '🖌️', '🧴', '🧪'], // Тэгер, Краска, Палитра...
-    emojis: ['🤡', '👻', '👺', '💀', '👽', '💩', '🤖', '👾'] 
+    tools: ['🔫', '🥛', '🎨', '🖌️'], 
+    emojis: ['🤡', '👻', '👺', '💀', '👽', '💩', '🤖', '👾', '🎃', '😺', '🙉', '🦊', '🌚', '🍕', '🍔', '🍟', '🌭'],
+    mythical: ['🐲', '🦄', '👑', '💎']
 };
 
 // --- ХЕЛПЕРЫ ---
@@ -40,21 +41,18 @@ const compress = (file, cb) => {
     r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); const max = 800; let w=i.width, h=i.height; if(w>h){if(w>max){h*=max/w;w=max}}else{if(h>max){w*=max/h;h=max}} c.width=w; c.height=h; c.getContext('2d').drawImage(i,0,0,w,h); cb(c.toDataURL('image/jpeg', 0.8)); } }
 };
 
-// Генератор аватарок с учетом новых эффектов
+// Генератор аватарок (с закрепами)
 const getAv = (u, sz, addFrame=false) => {
     if(!u) return '';
     let src = u.avatar || u.authorAvatar || 'https://via.placeholder.com/80';
     let frameClass = '', satellites = '';
     
-    // Поддержка старого и нового формата инвентаря
     const inv = u.inventory || u.authorInventory || [];
-    const pins = u.pinnedEmojis || {};
+    const pins = u.pinnedEmojis || {}; // { slot1: "🤡", slot2: "🔫" }
 
     if(addFrame && inv.length > 0) {
-        // Ищем самые редкие предметы для рамки
         if(inv.some(i => i.rarity === 'mythical')) frameClass = 'rarity-mythical';
-        else if(inv.some(i => i.rarity === 'legendary')) frameClass = 'frame-legendary';
-        else if(inv.some(i => i.rarity === 'epic')) frameClass = 'frame-epic';
+        else if(inv.some(i => i.rarity === 'legendary')) frameClass = 'rarity-legendary';
     }
     
     if(pins.slot1) satellites += `<span class="sat-icon sat-1">${pins.slot1}</span>`;
@@ -64,20 +62,12 @@ const getAv = (u, sz, addFrame=false) => {
 };
 
 const parseTime = ts => new Date(ts).toLocaleDateString();
-
-// NEW: Парсер текста (ссылки и @user)
-const parseText = (txt) => {
-    if(!txt) return '';
-    // Заменяем @username на ссылку
-    let p = txt.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#3390ec; cursor:pointer; font-weight:bold" onclick="window.ui.nav(\'profile\', \'$1\')">@$1</span>');
-    // Можно добавить авто-ссылки http...
-    return p;
-};
+const parseText = (txt) => txt ? txt.replace(/@([a-zA-Z0-9_]+)/g, '<b style="color:var(--primary); cursor:pointer" onclick="event.stopPropagation(); window.ui.nav(\'profile\', \'$1\')">@$1</b>') : '';
 
 // --- UI NAVIGATOR ---
 window.ui = {
     nav: (v, p) => {
-        if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; } // Отписка от чата
+        if(activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
         if(v === 'profile' && !p) p = currentUser.username;
         
         document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -91,12 +81,10 @@ window.ui = {
             if(el) el.classList.add('active');
         }
         
-        // Подсветка меню
         const map = {'feed':0, 'market':1, 'groups':2, 'chats':3, 'rich':4, 'profile':5, 'admin':6, 'search':7, 'settings':8};
         const items = document.querySelectorAll('.nav-item');
         if(map[v] !== undefined && items[map[v]]) items[map[v]].classList.add('active');
 
-        // Роутинг
         if(v==='feed') window.app.loadFeed();
         if(v==='chats') window.app.loadChats();
         if(v==='market') window.market.tab('cases');
@@ -105,13 +93,14 @@ window.ui = {
         if(v==='chat-room') window.app.loadChatRoom(p);
         if(v==='groups') window.app.loadGroups();
         if(v==='admin') window.admin.tab('users');
-        if(v==='settings' && currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
+        if(v==='settings') {
+            document.getElementById('settings-bal').innerText = currentUser.balance;
+            document.getElementById('settings-tickets').innerText = currentUser.tickets || 0;
+            if(currentUser.isAdmin) document.getElementById('settings-admin-btn').classList.remove('hidden');
+        }
     },
     closeModals: () => {
         document.querySelectorAll('.modal-overlay').forEach(e => e.classList.add('hidden'));
-        document.getElementById('case-result').classList.add('hidden');
-        document.getElementById('case-spinner').classList.remove('hidden');
-        document.getElementById('case-close-btn').classList.add('hidden');
     },
     toggleAuth: (mode) => { document.getElementById('login-box').classList.toggle('hidden', mode!=='login'); document.getElementById('reg-box').classList.toggle('hidden', mode!=='reg'); },
     togglePass: (id) => { const el = document.getElementById(id); el.type = el.type==='password'?'text':'password'; },
@@ -123,28 +112,28 @@ window.ui = {
     },
     theme: () => {
         const d = document.getElementById('theme-switch').checked;
-        document.body.style.background = d ? '#0f0f0f' : '#fff';
-        document.body.style.color = d ? '#fff' : '#000';
+        if(d) document.body.classList.add('dark'); else document.body.classList.remove('dark');
+        localStorage.setItem('theme', d ? 'dark' : 'light');
     }
 };
 
 // --- APP CORE ---
 window.app = {
     init: async () => {
+        const t = localStorage.getItem('theme');
+        if(t === 'dark') { document.body.classList.add('dark'); document.getElementById('theme-switch').checked = true; }
+
         const u = localStorage.getItem('user');
         if(u) {
             const s = await getDoc(doc(db, 'users', u));
             if(s.exists()) {
                 currentUser = s.data();
                 
-                // MIGRATION FIXES (Для старых аккаунтов)
+                // MIGRATION
                 let fix = {};
-                if(!currentUser.inventory) fix.inventory = [];
+                if(!currentUser.tickets) fix.tickets = 0;
                 if(!currentUser.pinnedEmojis) fix.pinnedEmojis = {};
-                if(!currentUser.balance) fix.balance = 0;
-                if(!currentUser.tickets) fix.tickets = 0; // NEW: Билеты
-                if(!currentUser.graffiti) fix.graffiti = null; // NEW: Стена
-                
+                if(!currentUser.graffiti) fix.graffiti = null;
                 if(Object.keys(fix).length > 0) { 
                     await updateDoc(doc(db, 'users', u), fix); 
                     currentUser = {...currentUser, ...fix}; 
@@ -155,10 +144,6 @@ window.app = {
                 document.getElementById('auth-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 if(currentUser.isAdmin) document.getElementById('nav-admin').classList.remove('hidden');
-                
-                // Update Settings UI
-                document.getElementById('settings-bal').innerText = currentUser.balance;
-                document.getElementById('settings-tickets').innerText = currentUser.tickets;
                 
                 window.ui.nav('feed');
             }
@@ -173,38 +158,81 @@ window.app = {
             if(s.data().isBanned) return alert('BAN');
             localStorage.setItem('user', u);
             location.reload();
-        } else alert('Неверный логин или пароль');
+        } else alert('Ошибка входа');
     },
     register: async () => {
         const u = document.getElementById('reg-user').value.toLowerCase().trim();
         const n = document.getElementById('reg-name').value;
         const p = document.getElementById('reg-pass').value;
-        // Basic check
         if(u.length < 3) return alert('Короткий ник');
         
         await setDoc(doc(db, 'users', u), { 
             username: u, name: n, password: p, 
-            balance: 10, tickets: 0, 
-            inventory: [], pinnedEmojis: {}, 
+            balance: 10, tickets: 0, inventory: [], pinnedEmojis: {}, 
             followers:[], following:[], blocked:[], 
-            isAdmin:false, isVerified:false, 
-            graffiti: null, // New
-            createdAt: Date.now() 
+            isAdmin:false, isVerified:false, createdAt: Date.now() 
         });
-        alert('Аккаунт создан! Войдите.'); window.ui.toggleAuth('login');
+        alert('Готово! Войдите.'); window.ui.toggleAuth('login');
     },
     logout: () => { localStorage.clear(); location.reload(); },
-    // --- POSTS LOGIC (UPDATED WITH MAGAZINE & LINKS) ---
+    // --- AVATAR & PINNING SYSTEM (NEW) ---
+    openAvatarMenu: () => {
+        document.getElementById('avatar-menu-modal').classList.remove('hidden');
+        // Отображаем текущие закрепы
+        const pins = currentUser.pinnedEmojis || {};
+        document.getElementById('slot1-view').innerText = pins.slot1 || '➕';
+        document.getElementById('slot2-view').innerText = pins.slot2 || '➕';
+    },
+
+    manageSlot: (slot) => {
+        selectedSlot = slot;
+        document.getElementById('avatar-menu-modal').classList.add('hidden');
+        document.getElementById('item-select-modal').classList.remove('hidden');
+        
+        const c = document.getElementById('item-select-list'); c.innerHTML = '';
+        // Фильтруем только Эмодзи (не инструменты)
+        const emojis = currentUser.inventory.filter(i => !ITEMS_DB.tools.includes(i.emoji));
+        
+        if(emojis.length === 0) c.innerHTML = '<p style="padding:10px">Нет эмодзи. Купите кейс!</p>';
+        
+        emojis.forEach(i => {
+            c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.app.equipItem('${i.emoji}')">
+                <span style="font-size:30px">${i.emoji}</span>
+            </div>`;
+        });
+        
+        // Кнопка снятия
+        document.getElementById('unequip-btn').onclick = () => window.app.equipItem(null);
+    },
+
+    equipItem: async (emoji) => {
+        const upd = {};
+        upd[`pinnedEmojis.${selectedSlot}`] = emoji ? emoji : deleteField(); // deleteField import needed or just update whole object
+        
+        // Проще обновить весь объект
+        const newPins = { ...currentUser.pinnedEmojis };
+        if(emoji) newPins[selectedSlot] = emoji;
+        else delete newPins[selectedSlot];
+        
+        await updateDoc(doc(db, 'users', currentUser.username), { pinnedEmojis: newPins });
+        currentUser.pinnedEmojis = newPins; // Local update
+        
+        alert(emoji ? 'Закреплено!' : 'Снято!');
+        window.ui.closeModals();
+        window.app.loadProfile(currentUser.username); // Refresh profile
+    },
+
+    // --- POSTS SYSTEM ---
     openCreatePost: () => { 
         document.getElementById('create-post-modal').classList.remove('hidden'); 
-        window.app.setPostType('normal', document.querySelector('.tab.active')); // Reset to normal
+        window.app.setPostType('normal', document.querySelector('.tab.active')); 
     },
     
     setPostType: (type, btn) => {
         document.getElementById('post-type-normal').classList.toggle('hidden', type !== 'normal');
         document.getElementById('post-type-magazine').classList.toggle('hidden', type !== 'magazine');
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
+        if(btn) btn.classList.add('active');
         window.currentPostType = type;
     },
 
@@ -219,9 +247,8 @@ window.app = {
 
     createPost: async () => {
         const type = window.currentPostType || 'normal';
-        let content, images = [], actionBtn = null;
+        let content = '', images = [], actionBtn = null;
         
-        // Action Button Data
         const btnText = document.getElementById('post-btn-text').value;
         const btnLink = document.getElementById('post-btn-link').value;
         if(btnText && btnLink) actionBtn = { text: btnText, link: btnLink };
@@ -230,36 +257,29 @@ window.app = {
             content = document.getElementById('post-text').value;
             if(tempImg) images.push(tempImg);
         } else {
-            // Magazine Logic (Placeholder for future expansion, simplified now)
-            content = document.getElementById('mag-text').value; 
-            // In full version, here we would collect 5 images from slots
-            alert('Журнальный режим пока в разработке, пост будет создан как обычный.');
-            type = 'normal'; // Fallback
+            content = document.getElementById('mag-text').value;
+            // В полной версии тут сбор 5 фото, пока упрощено для стабильности
+            if(tempImg) images.push(tempImg); 
         }
 
         if(!content && images.length === 0) return alert('Пустой пост!');
-        
-        // AUTO-MODERATION
-        const needsMod = (images.length > 0 || actionBtn) ? true : false;
         
         await addDoc(collection(db, 'posts'), {
             author: currentUser.username, 
             name: currentUser.name, 
             content: content, 
-            image: images[0] || null, // Simplified for now
+            image: images[0] || null, 
             type: type,
             actionBtn: actionBtn,
             likes: [], 
             createdAt: Date.now(),
-            approved: !needsMod, // If mod needed, approved=false
+            approved: true, // Auto-approve for now (add mod logic if needed)
             authorInventory: currentUser.inventory, 
             pinnedEmojis: currentUser.pinnedEmojis,
             groupId: activeGroupId
         });
         
-        if(needsMod) alert('Пост отправлен на проверку (Фото/Ссылка)');
-        else alert('Опубликовано!');
-        
+        alert('Опубликовано!');
         document.getElementById('post-text').value = ''; 
         window.app.clearImg(); 
         window.ui.closeModals();
@@ -267,15 +287,14 @@ window.app = {
     },
 
     loadFeed: () => {
-        if(listeners.feed) listeners.feed(); // Unsub old
+        if(listeners.feed) listeners.feed();
         const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(30));
         listeners.feed = onSnapshot(q, s => {
             let html = '';
             s.forEach(d => {
                 const p = d.data(); p.id = d.id;
-                // Filter unapproved / blocked
-                if(!p.approved && p.author !== currentUser.username && !currentUser.isAdmin) return;
-                if(p.groupId) return; // Don't show group posts in main feed
+                if(!p.approved) return;
+                if(p.groupId) return;
                 if(currentUser.blocked && currentUser.blocked.includes(p.author)) return;
                 html += window.app.renderPost(p);
             });
@@ -285,36 +304,42 @@ window.app = {
 
     renderPost: (p) => {
         const fakeUser = { avatar: p.avatar, authorAvatar: p.authorAvatar, inventory: p.authorInventory, pinnedEmojis: p.pinnedEmojis };
-        // Action Button HTML
+        
+        let mediaHtml = '';
+        if(p.type === 'magazine' && p.images && p.images.length > 0) {
+            // Magazine Layout logic (placeholder if array exists)
+            mediaHtml = `<div class="mag-grid">${p.images.map(src => `<img src="${src}" class="mag-item">`).join('')}</div>`;
+        } else if(p.image) {
+            mediaHtml = `<img src="${p.image}" class="post-img" onclick="window.open('${p.image}')">`;
+        }
+
         const actionHtml = p.actionBtn ? `<a href="${p.actionBtn.link}" target="_blank" class="action-btn-link">${p.actionBtn.text}</a>` : '';
         
         return `<div class="card">
             <div class="user-row" onclick="window.ui.nav('profile','${p.author}')">
                 ${getAv(fakeUser, 'av-40', true)}
                 <div>
-                    <b>${p.name}</b> ${p.verified?'<span style="color:#3390ec">✓</span>':''}
-                    <br><small class="post-date">${parseTime(p.createdAt)} ${!p.approved?'[MOD]':''}</small>
+                    <b>${p.name}</b> ${p.verified?'<span class="verified-icon">✓</span>':''}
+                    <br><small class="post-date">${parseTime(p.createdAt)}</small>
                 </div>
             </div>
             <div style="margin:10px 0; white-space:pre-wrap;">${parseText(p.content)}</div>
-            ${p.image ? `<img src="${p.image}" class="post-img" onclick="window.open('${p.image}')">` : ''}
+            ${mediaHtml}
             ${actionHtml}
-            <div class="user-row" style="margin-top:10px; justify-content:space-between;">
+            <div class="user-row" style="margin-top:10px; justify-content:space-between; position:relative; z-index:2;">
                 <button class="action-btn btn-sec" onclick="window.app.like('${p.id}', '${p.author}')">❤️ ${p.likes?.length||0}</button>
                 <button class="action-btn btn-sec" onclick="window.app.openComs('${p.id}')">💬</button>
-                ${currentUser.isAdmin || p.author===currentUser.username ? `<button class="action-btn btn-danger sm-btn" onclick="window.app.delPost('${p.id}')">Del</button>` : ''}
+                ${currentUser.isAdmin || p.author===currentUser.username ? `<button class="action-btn btn-danger sm-btn" onclick="window.app.delPost('${p.id}')">🗑️</button>` : ''}
             </div>
         </div>`;
     },
-    
-    // --- PROFILE SYSTEM (WITH GRAFFITI WALL) ---
+    // --- PROFILE SYSTEM ---
     loadProfile: async (u) => {
         const c = document.getElementById('profile-head');
         const pc = document.getElementById('profile-posts');
         c.innerHTML = 'Загрузка...'; pc.innerHTML = '';
         activeGroupId = null;
 
-        // Check User
         const s = await getDoc(doc(db, 'users', u));
         if(s.exists()) {
             const user = s.data();
@@ -322,7 +347,7 @@ window.app = {
             const isFollow = currentUser.following.includes(u);
             const isBlocked = currentUser.blocked && currentUser.blocked.includes(u);
             
-            // GRAFFITI WALL RENDER
+            // GRAFFITI WALL
             let wallHtml = '';
             if(user.graffiti) {
                 wallHtml = `<div class="card" style="background:#222; color:white; text-align:center;">
@@ -331,10 +356,10 @@ window.app = {
                 </div>`;
             }
 
-            // BUTTONS LOGIC
             let btns = '';
             if(isMe) {
-                btns = `<button class="action-btn sm-btn" onclick="window.ui.nav('settings')">Ред.</button>`;
+                btns = `<button class="action-btn sm-btn" onclick="window.ui.nav('settings')">Ред.</button>
+                        <button class="action-btn sm-btn btn-sec" onclick="window.app.openAvatarMenu()">Украшения</button>`;
             } else {
                 if(isBlocked) {
                     btns = `<button class="action-btn btn-sec" onclick="window.app.block('${u}', false)">Разблокировать</button>`;
@@ -343,8 +368,8 @@ window.app = {
                             <button class="action-btn sm-btn btn-sec" onclick="window.ui.nav('chat-room','${u}')">Чат</button>
                             <button class="action-btn sm-btn btn-danger" onclick="window.app.block('${u}', true)">Блок</button>`;
                     
-                    // TAGGER BUTTON (Check if I have a Tagger)
-                    const hasTagger = currentUser.inventory.find(i => i.emoji === '🔫'); // Gun emoji for Tagger
+                    // TAGGER CHECK
+                    const hasTagger = currentUser.inventory.find(i => i.emoji === '🔫');
                     if(hasTagger) {
                         btns += `<br><button class="action-btn full-width mt-10" style="background:#000" onclick="window.graffiti.open('${u}')">🖌️ ЗА ТЭГАТЬ</button>`;
                     }
@@ -355,16 +380,15 @@ window.app = {
                 ${wallHtml}
                 <div class="card center-content">
                     ${getAv(user, 'av-80', true)}
-                    <h2>${user.name} ${user.isVerified?'<span style="color:#3390ec">✓</span>':''}</h2>
+                    <h2>${user.name} ${user.isVerified?'<span class="verified-icon">✓</span>':''}</h2>
                     <div style="color:gray">@${user.username}</div>
                     <div style="display:flex; justify-content:center; gap:20px; margin:10px;">
-                        <b onclick="window.app.showList('followers','${u}')">${user.followers?.length||0} подп.</b>
-                        <b onclick="window.app.showList('following','${u}')">${user.following?.length||0} подписки</b>
+                        <b>${user.followers?.length||0} подп.</b>
+                        <b>${user.following?.length||0} подписки</b>
                     </div>
                     ${btns}
                 </div>`;
             
-            // Load User Posts
             const q = query(collection(db, 'posts'), where('author', '==', u));
             const ps = await getDocs(q);
             ps.forEach(d => { 
@@ -373,35 +397,31 @@ window.app = {
             });
 
         } else {
-            // Check Group
+            // Group Check
             const g = await getDoc(doc(db, 'groups', u));
             if(g.exists()) {
                 activeGroupId = u;
                 const group = g.data();
-                const isOwner = group.owner === currentUser.username;
                 c.innerHTML = `<div class="card center-content">
                     <h2>${group.name}</h2>
                     <p>${group.desc}</p>
                     <button class="action-btn" onclick="window.app.openCreatePost()">Пост</button>
-                    ${isOwner ? `<button class="action-btn btn-sec sm-btn" onclick="window.app.editGroup('${u}')">Ред</button>` : ''}
                 </div>`;
                 const q = query(collection(db, 'posts'), where('groupId', '==', u));
                 const ps = await getDocs(q);
                 ps.forEach(d => pc.innerHTML += window.app.renderPost({...d.data(), id:d.id}));
-            } else {
-                c.innerHTML = 'Профиль не найден';
             }
         }
     },
     
-    // --- SOCIAL ACTIONS ---
+    // --- ACTIONS ---
     like: async (id, auth) => {
         const r = doc(db, 'posts', id);
         const p = (await getDoc(r)).data();
         if(p.likes.includes(currentUser.username)) await updateDoc(r, {likes: arrayRemove(currentUser.username)});
         else { 
             await updateDoc(r, {likes: arrayUnion(currentUser.username)}); 
-            window.app.notify(auth, 'like', 'Лайкнул ваш пост'); 
+            window.app.notify(auth, 'like', 'Лайк'); 
         }
     },
     follow: async (u) => {
@@ -415,55 +435,34 @@ window.app = {
             await updateDoc(me, {following: arrayUnion(u)});
             await updateDoc(him, {followers: arrayUnion(currentUser.username)});
             currentUser.following.push(u);
-            window.app.notify(u, 'sub', 'Подписался на вас');
+            window.app.notify(u, 'sub', 'Подписка');
         }
         window.app.loadProfile(u);
     },
-    block: async (u, doBlock) => {
-        const me = doc(db, 'users', currentUser.username);
-        if(doBlock) { 
-            await updateDoc(me, {blocked: arrayUnion(u)}); 
-            if(!currentUser.blocked) currentUser.blocked=[]; 
-            currentUser.blocked.push(u); 
-        } else { 
-            await updateDoc(me, {blocked: arrayRemove(u)}); 
-            currentUser.blocked = currentUser.blocked.filter(x=>x!==u); 
-        }
-        window.app.loadProfile(u);
-    },
-    // --- CHAT SYSTEM (UPDATED WITH DECOR) ---
+    delPost: async (id) => { if(confirm('Удалить пост?')) await deleteDoc(doc(db, 'posts', id)); window.ui.nav('feed'); },
+    
+    // --- CHAT SYSTEM ---
     loadChats: async () => {
         const c = document.getElementById('chats-list'); c.innerHTML = '';
-        if(currentUser.following.length === 0) return c.innerHTML = 'Подпишитесь на кого-нибудь, чтобы начать чат';
-        
         for(const f of currentUser.following) {
             const u = await getDoc(doc(db, 'users', f));
             if(u.exists()) c.innerHTML += `<div class="card user-row" onclick="window.ui.nav('chat-room','${f}')">${getAv(u.data(),'av-40')} <b>${u.data().name}</b></div>`;
         }
     },
-
     loadChatRoom: async (u) => {
         curChat = u;
         document.getElementById('chat-title').innerText = u;
         const id = [currentUser.username, u].sort().join('_');
         const c = document.getElementById('msg-container');
         
-        // --- LOAD CHAT DECOR ---
-        // We check if chat document exists and has decor settings
-        const chatDocRef = doc(db, 'chats', id);
-        const chatSnap = await getDoc(chatDocRef);
-        
+        // Load Decor
+        const chatSnap = await getDoc(doc(db, 'chats', id));
         if(chatSnap.exists()) {
-            const data = chatSnap.data();
-            if(data.bg) document.getElementById('chat-bg-layer').style.backgroundImage = `url('${data.bg}')`;
-            if(data.fx) document.getElementById('chat-fx-layer').style.backgroundImage = `url('${data.fx}')`;
-        } else {
-            // Set default if no decor
-            document.getElementById('chat-bg-layer').style.backgroundImage = '';
-            document.getElementById('chat-fx-layer').style.backgroundImage = '';
+            const d = chatSnap.data();
+            document.getElementById('chat-bg-layer').style.backgroundImage = d.bg ? `url('${d.bg}')` : '';
+            document.getElementById('chat-fx-layer').style.backgroundImage = d.fx ? `url('${d.fx}')` : '';
         }
 
-        // --- MESSAGES ---
         if(activeChatUnsub) activeChatUnsub();
         const q = query(collection(db, 'chats', id, 'messages'), orderBy('time','asc'));
         activeChatUnsub = onSnapshot(q, s => {
@@ -471,15 +470,15 @@ window.app = {
             s.forEach(d => {
                 const m = d.data();
                 const isMe = m.from === currentUser.username;
-                
                 let content = m.text;
                 if(m.image) content = `<img src="${m.image}" class="chat-img" onclick="window.open('${m.image}')">`;
                 
                 if(m.type === 'game_invite') {
-                    // Game Invite Logic
                     const status = m.finished ? `Завершено. Победил: ${m.winner}` : `Ставка: ${m.bet} HC`;
-                    const action = !m.finished && !isMe ? `onclick="window.game.start('${d.id}','${id}',${m.target},${m.hint},${m.bet},'${m.creator}')"` : '';
-                    const style = m.finished ? 'background:#555; cursor:default;' : '';
+                    // FIX: Prevent playing with self
+                    const canPlay = !m.finished && !isMe;
+                    const action = canPlay ? `onclick="window.game.start('${d.id}','${id}',${m.target},${m.hint},${m.bet},'${m.creator}')"` : '';
+                    const style = canPlay ? '' : 'background:#555; cursor:default;';
                     
                     c.innerHTML += `<div class="msg-row ${isMe?'me':'other'}">
                         <div class="msg game" style="${style}" ${action}>
@@ -495,85 +494,56 @@ window.app = {
             c.scrollTop = c.scrollHeight;
         });
     },
-
     sendMsg: async () => {
         const txt = document.getElementById('msg-input').value;
         if(!txt && !tempChatImg) return;
         const id = [currentUser.username, curChat].sort().join('_');
         
-        // Ensure chat document exists for decor storage
-        const chatRef = doc(db, 'chats', id);
-        const chatSnap = await getDoc(chatRef);
-        if(!chatSnap.exists()) await setDoc(chatRef, { created: Date.now() });
+        // Ensure chat exists
+        const cr = doc(db, 'chats', id);
+        if(!(await getDoc(cr)).exists()) await setDoc(cr, { created: Date.now() });
 
         const d = { from: currentUser.username, text: txt, time: Date.now() };
         if(tempChatImg) { d.image = tempChatImg; d.text = '📷 Фото'; }
-        
         await addDoc(collection(db, 'chats', id, 'messages'), d);
         document.getElementById('msg-input').value = ''; tempChatImg = null;
     },
-
     handleChatImg: (el) => { if(el.files[0]) compress(el.files[0], d => { tempChatImg = d; window.app.sendMsg(); }); },
 
-    navToChatProfile: () => { window.ui.nav('profile', curChat); },
-    
-    // --- GAME LOGIC (FIXED BALANCE CHECK) ---
+    // --- GAME LOGIC ---
     createGame: async () => {
         const num = parseInt(document.getElementById('game-number').value);
         const bet = parseInt(document.getElementById('game-bet').value);
-        
-        if(currentUser.balance < bet) return alert('Недостаточно средств!');
+        if(currentUser.balance < bet) return alert('Нет денег');
         
         const id = [currentUser.username, curChat].sort().join('_');
-        let hint = num + Math.floor(Math.random()*10)-5; // Simple hint logic
+        let hint = num + Math.floor(Math.random()*10)-5; 
         
-        // Deduct balance from creator
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
-        
         await addDoc(collection(db, 'chats', id, 'messages'), { 
-            type: 'game_invite', 
-            creator: currentUser.username, 
-            target: num, 
-            hint: hint, 
-            bet: bet, 
-            time: Date.now(),
-            finished: false 
+            type: 'game_invite', creator: currentUser.username, target: num, hint: hint, bet: bet, time: Date.now(), finished: false 
         });
         window.ui.closeModals();
     },
-
     startGame: async (mid, cid, target, hint, bet, creator) => {
-        // Check opponent balance
-        if(currentUser.balance < bet) return alert('У вас недостаточно средств для ставки!');
+        if(creator === currentUser.username) return alert('Нельзя играть с самим собой!');
+        if(currentUser.balance < bet) return alert('Нет денег');
         
-        // Deduct balance from opponent (joiner)
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-bet) });
         
         activeGame = { mid, cid, target, hint, bet, creator };
         document.getElementById('game-ui').classList.remove('hidden');
         document.getElementById('game-hint-num').innerText = hint;
         
-        // Start Timer
         let tl = 100;
         const timerCircle = document.getElementById('timer-progress');
         if(gameTimerInt) clearInterval(gameTimerInt);
-        
         gameTimerInt = setInterval(() => {
             tl -= 1; 
             timerCircle.style.strokeDashoffset = 283 - (tl / 100) * 283;
-            if(tl <= 0) { 
-                clearInterval(gameTimerInt); 
-                window.game.finish(false, 'Время вышло'); // Auto-lose
-            }
-        }, 100); // 10 seconds total
+            if(tl <= 0) { clearInterval(gameTimerInt); window.game.finish(false, 'Время вышло'); }
+        }, 100); 
     },
-    
-    makeGuess: (ch) => {
-        clearInterval(gameTimerInt);
-        const w = (ch==='more' && activeGame.target > activeGame.hint) || (ch==='less' && activeGame.target < activeGame.hint);
-        window.game.finish(w, w?'Угадал!':'Мимо');
-    },
-
     finishGame: async (isWin, msg) => {
         const winner = isWin ? currentUser.username : activeGame.creator;
         const pot = activeGame.bet * 2;
@@ -581,21 +551,13 @@ window.app = {
         document.getElementById('game-ui').classList.add('hidden');
         document.getElementById('game-result').classList.remove('hidden');
         document.getElementById('gr-title').innerText = isWin ? "ПОБЕДА" : "ПОРАЖЕНИЕ";
-        document.getElementById('gr-real').innerText = activeGame.target;
         document.getElementById('gr-msg').innerText = msg;
         
-        // Give pot to winner
         await updateDoc(doc(db, 'users', winner), { balance: increment(pot) });
-        
-        // Update chat message
-        await updateDoc(doc(db, 'chats', activeGame.cid, 'messages', activeGame.mid), { 
-            finished: true, 
-            winner: winner 
-        });
+        await updateDoc(doc(db, 'chats', activeGame.cid, 'messages', activeGame.mid), { finished: true, winner: winner });
     }
 };
-
-// Bind Game functions to window.game namespace for HTML access
+// Bind Game functions globally
 window.game = {
     openCreate: () => { document.getElementById('game-create-modal').classList.remove('hidden'); },
     create: window.app.createGame,
@@ -605,12 +567,12 @@ window.game = {
     close: () => { document.getElementById('game-result').classList.add('hidden'); }
 };
 
-// --- MARKET & INVENTORY SYSTEM (UPDATED) ---
+// --- MARKET & INVENTORY SYSTEM (FIXED) ---
 window.market = {
     tab: (t) => {
         const c = document.getElementById('market-content'); c.innerHTML = '';
         document.querySelectorAll('.view#view-market .tab').forEach(e=>e.classList.remove('active'));
-        // Set Active Tab
+        
         const tabs = document.querySelectorAll('.view#view-market .tab');
         if(t==='cases') tabs[0].classList.add('active'); 
         if(t==='market') tabs[1].classList.add('active'); 
@@ -618,21 +580,26 @@ window.market = {
 
         if(t==='cases') {
             c.innerHTML = `
-            <div class="card center-content">
-                <h2>📦 Обычный Кейс</h2>
-                <p>Эмодзи и Хлам</p>
-                <button class="action-btn" onclick="window.market.buyCase('normal')">100 HC</button>
-            </div>
-            <div class="card center-content" style="border:2px solid gold">
-                <h2>📦 Legacy Box</h2>
-                <p>Шанс на Тэгер, Билеты и Мифики</p>
-                <button class="action-btn btn-gold" onclick="window.market.buyCase('legacy')">500 HC</button>
+            <div style="display:flex; flex-direction:column; gap:15px; padding:10px;">
+                <div class="card" style="display:flex; align-items:center; gap:15px; cursor:pointer;" onclick="window.market.buyCase('normal')">
+                    <div style="font-size:40px;">📦</div>
+                    <div><b>Обычный Кейс</b><br>100 HC<br><small>Эмодзи (Common-Rare)</small></div>
+                </div>
+                <div class="card" style="display:flex; align-items:center; gap:15px; border:2px solid orange; cursor:pointer;" onclick="window.market.buyCase('tools')">
+                    <div style="font-size:40px;">🛠️</div>
+                    <div><b>Tool Box</b><br>250 HC<br><small>Тэгеры, Краска, Палитры</small></div>
+                </div>
+                <div class="card" style="display:flex; align-items:center; gap:15px; border:2px solid gold; background: linear-gradient(45deg, #000, #333); color:gold; cursor:pointer;" onclick="window.market.buyCase('legacy')">
+                    <div style="font-size:40px;">👑</div>
+                    <div><b>Legacy Box</b><br>500 HC<br><small>БИЛЕТЫ + Шанс на Мифик</small></div>
+                </div>
             </div>`;
         }
+        
         if(t==='inventory') {
-            if(!currentUser.inventory || currentUser.inventory.length === 0) c.innerHTML = 'Пусто';
+            if(!currentUser.inventory || currentUser.inventory.length === 0) c.innerHTML = '<div style="text-align:center; padding:20px;">Инвентарь пуст</div>';
             else {
-                // Разделяем инвентарь на категории для удобства
+                // Разделяем предметы
                 const tools = currentUser.inventory.filter(i => ITEMS_DB.tools.includes(i.emoji));
                 const emojis = currentUser.inventory.filter(i => !ITEMS_DB.tools.includes(i.emoji));
                 
@@ -640,9 +607,9 @@ window.market = {
                     c.innerHTML += '<h3>Инструменты</h3><div class="market-grid">';
                     tools.forEach(i => {
                         let extra = '';
-                        if(i.emoji === '🔫') extra = `<span class="item-qty">${i.charges||0}</span>`; // Тэгер заряды
-                        c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.market.openSell('${i.id}','${i.emoji}','${i.rarity}')">
-                            <span style="font-size:30px">${i.emoji}</span>${extra}
+                        if(i.emoji === '🔫') extra = `<span class="item-qty">${i.charges||0}</span>`;
+                        c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.market.openSell('${i.id}','${i.emoji}','${i.rarity}', ${i.charges||0})">
+                            <span style="font-size:40px">${i.emoji}</span>${extra}
                         </div>`;
                     });
                     c.innerHTML += '</div>';
@@ -652,7 +619,7 @@ window.market = {
                     c.innerHTML += '<h3>Эмодзи</h3><div class="market-grid">';
                     emojis.forEach(i => {
                         c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.market.openSell('${i.id}','${i.emoji}','${i.rarity}')">
-                            <span style="font-size:30px">${i.emoji}</span>
+                            <span style="font-size:40px">${i.emoji}</span>
                         </div>`;
                     });
                     c.innerHTML += '</div>';
@@ -663,44 +630,76 @@ window.market = {
     },
 
     buyCase: async (type) => {
-        const price = type === 'legacy' ? 500 : 100;
+        const prices = { 'normal': 100, 'tools': 250, 'legacy': 500 };
+        const price = prices[type];
+        
         if(currentUser.balance < price) return alert('Недостаточно средств!');
+        
+        // 1. Анимация
+        document.getElementById('case-opening-modal').classList.remove('hidden');
+        
+        // 2. Логика (пока крутится анимация)
+        await new Promise(r => setTimeout(r, 1500)); // Ждем 1.5 сек
         
         await updateDoc(doc(db, 'users', currentUser.username), { balance: increment(-price) });
         
-        // Генерация дропа
         let item = { id: Date.now() + Math.random().toString(), rarity: 'common', emoji: '💩' };
-        
+        let isTicket = false;
+        let ticketAmount = 0;
+
         if(type === 'legacy') {
-            // Шанс на Билеты (Tickets) - 50%
-            if(Math.random() < 0.5) {
-                const amount = Math.floor(Math.random() * 3) + 1; // 1-3 билета
-                await updateDoc(doc(db, 'users', currentUser.username), { tickets: increment(amount) });
-                alert(`Выпали БИЛЕТЫ: ${amount} шт!`);
-                return; // Билеты падают вместо предмета (или можно сделать вместе)
-            }
-            
-            // Дроп предметов Legacy
             const rand = Math.random();
-            if(rand < 0.01) { item.emoji = '🎨'; item.rarity = 'mythical'; } // Палитра
-            else if(rand < 0.05) { item.emoji = '🔫'; item.rarity = 'legendary'; item.charges = 1; } // Тэгер
-            else if(rand < 0.2) { item.emoji = '🥛'; item.rarity = 'rare'; } // Краска
-            else { item.emoji = ITEMS_DB.emojis[Math.floor(Math.random() * ITEMS_DB.emojis.length)]; item.rarity = 'rare'; }
+            if(rand < 0.90) { 
+                // 90% Билеты
+                isTicket = true;
+                ticketAmount = Math.floor(Math.random() * 5) + 1; // 1-5 билетов
+            } else {
+                // 10% Мифик
+                item.emoji = ITEMS_DB.mythical[Math.floor(Math.random() * ITEMS_DB.mythical.length)];
+                item.rarity = 'mythical';
+            }
+        } else if (type === 'tools') {
+            const rand = Math.random();
+            if(rand < 0.05) { item.emoji = '🎨'; item.rarity = 'mythical'; } // Палитра
+            else if(rand < 0.15) { item.emoji = '🔫'; item.rarity = 'legendary'; item.charges = 1; } // Тэгер
+            else if(rand < 0.40) { item.emoji = '🥛'; item.rarity = 'rare'; } // Краска
+            else { item.emoji = '🖌️'; item.rarity = 'common'; } // Маркер (заглушка)
         } else {
-            // Обычный кейс
+            // Normal
             item.emoji = ITEMS_DB.emojis[Math.floor(Math.random() * ITEMS_DB.emojis.length)];
         }
+
+        // 3. Сохранение
+        if(isTicket) {
+            await updateDoc(doc(db, 'users', currentUser.username), { tickets: increment(ticketAmount) });
+        } else {
+            await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(item) });
+        }
+
+        // 4. Результат
+        document.getElementById('case-opening-modal').classList.add('hidden');
+        document.getElementById('drop-result-modal').classList.remove('hidden');
         
-        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(item) });
-        currentUser.balance -= price;
-        alert(`Выпало: ${item.emoji} (${item.rarity.toUpperCase()})`);
-        window.market.tab('inventory');
+        if(isTicket) {
+            document.getElementById('drop-icon').innerText = '🎫';
+            document.getElementById('drop-name').innerText = `${ticketAmount} Билетов`;
+            document.getElementById('drop-rarity').innerText = 'Валюта';
+        } else {
+            document.getElementById('drop-icon').innerText = item.emoji;
+            document.getElementById('drop-name').innerText = item.emoji;
+            document.getElementById('drop-rarity').innerText = item.rarity.toUpperCase();
+            document.getElementById('drop-rarity').className = `rarity-${item.rarity}`;
+        }
+        
+        currentUser.balance -= price; // Local update
+        // Не перекидываем в инвентарь, остаемся тут
     },
 
-    openSell: (id, em, r) => {
+    openSell: (id, em, r, ch) => {
         document.getElementById('sell-item-id').value = id;
         document.getElementById('sell-item-emoji').value = em;
         document.getElementById('sell-item-rarity').value = r;
+        document.getElementById('sell-item-charges').value = ch || 0;
         document.getElementById('sell-emoji-preview').innerText = em;
         document.getElementById('sell-modal').classList.remove('hidden');
     },
@@ -710,48 +709,47 @@ window.market = {
         const id = document.getElementById('sell-item-id').value;
         const em = document.getElementById('sell-item-emoji').value;
         const rar = document.getElementById('sell-item-rarity').value;
+        const ch = parseInt(document.getElementById('sell-item-charges').value);
         
         if(!p || p < 0) return alert('Укажите цену');
 
-        // FIX: Надежное удаление (фильтрация массива)
-        const itemToRemove = currentUser.inventory.find(i => i.id === id);
-        if(!itemToRemove) return alert('Предмет не найден (уже продан?)');
-
-        const newInv = currentUser.inventory.filter(i => i.id !== id);
+        // FIX: Находим точный индекс для удаления
+        const itemIdx = currentUser.inventory.findIndex(i => i.id === id);
+        if(itemIdx === -1) return alert('Ошибка предмета');
         
-        // Транзакция для надежности
-        try {
-            await updateDoc(doc(db, 'users', currentUser.username), { inventory: newInv });
-            await addDoc(collection(db, 'market_items'), { 
-                seller: currentUser.username, 
-                emoji: em, 
-                rarity: rar, 
-                price: p, 
-                itemId: id, // Original ID to restore if cancelled
-                charges: itemToRemove.charges || 0 // Save charges if tool
-            });
-            alert('Выставлено на продажу');
-            window.ui.closeModals(); 
-            window.market.tab('inventory');
-        } catch(e) {
-            alert('Ошибка продажи: ' + e);
-        }
+        // Удаляем локально и в БД
+        currentUser.inventory.splice(itemIdx, 1);
+        await updateDoc(doc(db, 'users', currentUser.username), { inventory: currentUser.inventory });
+
+        await addDoc(collection(db, 'market_items'), { 
+            seller: currentUser.username, 
+            emoji: em, rarity: rar, price: p, 
+            itemId: id, charges: ch 
+        });
+        
+        alert('Выставлено!');
+        window.ui.closeModals(); 
+        window.market.tab('inventory');
     },
 
     load: async () => {
         const c = document.getElementById('market-content'); c.innerHTML='';
         const s = await getDocs(collection(db, 'market_items'));
-        if(s.empty) c.innerHTML = 'На рынке пусто. Станьте первым продавцом!';
+        if(s.empty) c.innerHTML = '<div style="text-align:center; padding:20px;">Рынок пуст</div>';
+        
         s.forEach(d => {
             const i = d.data();
-            c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.market.buy('${d.id}',${i.price},'${i.emoji}','${i.seller}','${i.rarity}','${i.itemId}')">
-                <span style="font-size:30px">${i.emoji}</span><br>
+            let extra = '';
+            if(i.emoji === '🔫') extra = `<span class="item-qty">${i.charges}</span>`;
+            
+            c.innerHTML += `<div class="market-item rarity-${i.rarity}" onclick="window.market.buy('${d.id}',${i.price},'${i.emoji}','${i.seller}','${i.rarity}','${i.itemId}', ${i.charges})">
+                <span style="font-size:40px">${i.emoji}</span>${extra}<br>
                 <b>${i.price} HC</b>
             </div>`;
         });
     },
 
-    buy: async (did, p, em, seller, rar, iid) => {
+    buy: async (did, p, em, seller, rar, iid, ch) => {
         document.getElementById('buy-doc-id').value = did;
         document.getElementById('buy-item-price').value = p;
         document.getElementById('buy-emoji-display').innerText = em;
@@ -760,68 +758,61 @@ window.market = {
         const btn = document.getElementById('buy-btn-action');
         
         if(seller === currentUser.username) {
-            // Кнопка СНЯТЬ С ПРОДАЖИ (Возвращает предмет)
             btn.innerText = "Снять с продажи"; 
             btn.className = "action-btn btn-danger full-width";
-            btn.onclick = () => window.market.cancel(did, em, rar, iid);
+            btn.onclick = () => window.market.cancel(did, em, rar, iid, ch);
         } else {
-            // Кнопка КУПИТЬ
             btn.innerText = `Купить за ${p} HC`;
             btn.className = "action-btn full-width";
-            btn.onclick = () => window.market.execBuy(did, p, em, seller, rar, iid);
+            btn.onclick = () => window.market.execBuy(did, p, em, seller, rar, iid, ch);
         }
         document.getElementById('buy-modal').classList.remove('hidden');
     },
 
-    cancel: async (did, em, rar, iid) => {
-        // Вернуть предмет владельцу
-        const itemDoc = await getDoc(doc(db, 'market_items', did));
-        const itemData = itemDoc.data();
-        
+    cancel: async (did, em, rar, iid, ch) => {
         await deleteDoc(doc(db, 'market_items', did));
+        const item = { id: iid, emoji: em, rarity: rar };
+        if(ch) item.charges = ch;
         
-        // Restore with saved properties (charges)
-        const restoredItem = { id: iid, emoji: em, rarity: rar };
-        if(itemData.charges) restoredItem.charges = itemData.charges;
+        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(item) });
+        // Local update needed to avoid refresh
+        currentUser.inventory.push(item);
         
-        await updateDoc(doc(db, 'users', currentUser.username), { inventory: arrayUnion(restoredItem) });
-        alert('Предмет возвращен в инвентарь'); 
+        alert('Снято с продажи'); 
         window.ui.closeModals(); 
         window.market.tab('market');
     },
 
-    execBuy: async (did, p, em, seller, rar, iid) => {
+    execBuy: async (did, p, em, seller, rar, iid, ch) => {
         if(currentUser.balance < p) return alert('Недостаточно средств');
         
-        await runTransaction(db, async (t) => {
-            const itemRef = doc(db, 'market_items', did);
-            const iDoc = await t.get(itemRef);
-            if(!iDoc.exists()) throw "Предмет уже куплен!";
-            
-            const itemData = iDoc.data();
-            
-            // Удаляем с рынка
-            t.delete(itemRef);
-            
-            // Перечисляем деньги продавцу
-            t.update(doc(db, 'users', seller), { balance: increment(p) });
-            
-            // Списываем у покупателя и даем предмет
-            const boughtItem = { id: iid, emoji: em, rarity: rar };
-            if(itemData.charges) boughtItem.charges = itemData.charges;
-            
-            t.update(doc(db, 'users', currentUser.username), { 
-                balance: increment(-p), 
-                inventory: arrayUnion(boughtItem) 
+        try {
+            await runTransaction(db, async (t) => {
+                const itemRef = doc(db, 'market_items', did);
+                const iDoc = await t.get(itemRef);
+                if(!iDoc.exists()) throw "Уже купили!";
+                
+                t.delete(itemRef);
+                t.update(doc(db, 'users', seller), { balance: increment(p) });
+                
+                const item = { id: iid, emoji: em, rarity: rar };
+                if(ch) item.charges = ch;
+                
+                t.update(doc(db, 'users', currentUser.username), { 
+                    balance: increment(-p), 
+                    inventory: arrayUnion(item) 
+                });
             });
-        });
-        
-        alert('Покупка успешна!'); 
-        window.ui.closeModals(); 
-        window.market.tab('inventory');
+            alert('Куплено!');
+            currentUser.balance -= p;
+            window.ui.closeModals(); 
+            window.market.tab('market');
+        } catch(e) {
+            alert('Ошибка: ' + e);
+        }
     }
 };
-// --- GRAFFITI SYSTEM (NEW) ---
+// --- GRAFFITI SYSTEM ---
 window.graffiti = {
     canvas: null,
     ctx: null,
@@ -834,17 +825,16 @@ window.graffiti = {
         const modal = document.getElementById('graffiti-modal');
         modal.classList.remove('hidden');
         
-        // Init Canvas
         const c = document.getElementById('graffiti-canvas');
         window.graffiti.canvas = c;
         window.graffiti.ctx = c.getContext('2d');
         
-        // Reset
+        // Reset Canvas
         window.graffiti.clear();
         
-        // Check Tools (Palette & Charges)
-        const hasPalette = currentUser.inventory.find(i => i.emoji === '🎨');
+        // Check Tools
         const tagger = currentUser.inventory.find(i => i.emoji === '🔫');
+        const hasPalette = currentUser.inventory.find(i => i.emoji === '🎨');
         
         document.getElementById('paint-charges').innerText = `(Зарядов: ${tagger.charges || 0})`;
         
@@ -855,25 +845,23 @@ window.graffiti = {
             window.graffiti.setColor('black');
         }
 
-        // Touch Events
-        c.addEventListener('mousedown', window.graffiti.start);
-        c.addEventListener('mousemove', window.graffiti.draw);
-        c.addEventListener('mouseup', window.graffiti.stop);
-        c.addEventListener('touchstart', (e) => { e.preventDefault(); window.graffiti.start(e.touches[0]); });
-        c.addEventListener('touchmove', (e) => { e.preventDefault(); window.graffiti.draw(e.touches[0]); });
-        c.addEventListener('touchend', window.graffiti.stop);
+        // Event Listeners (Mouse & Touch)
+        const start = (e) => { window.graffiti.isPainting = true; window.graffiti.draw(e); };
+        const stop = () => { window.graffiti.isPainting = false; window.graffiti.ctx.beginPath(); };
+        
+        c.onmousedown = start;
+        c.onmousemove = window.graffiti.draw;
+        c.onmouseup = stop;
+        
+        c.ontouchstart = (e) => { e.preventDefault(); start(e.touches[0]); };
+        c.ontouchmove = (e) => { e.preventDefault(); window.graffiti.draw(e.touches[0]); };
+        c.ontouchend = stop;
     },
 
     setColor: (c) => {
         window.graffiti.color = c;
-        // Visual feedback
-        document.querySelectorAll('.color-swatch').forEach(s => s.style.border = '2px solid white');
-        if(c !== 'black') document.querySelector(`.color-swatch.${c}`).style.border = '2px solid gold';
-    },
-
-    start: (e) => {
-        window.graffiti.isPainting = true;
-        window.graffiti.draw(e);
+        document.querySelectorAll('.color-swatch').forEach(s => s.style.border = '3px solid white');
+        if(c !== 'black') document.querySelector(`.color-swatch.${c}`).style.border = '3px solid gold';
     },
 
     draw: (e) => {
@@ -888,7 +876,7 @@ window.graffiti = {
         
         if(window.graffiti.color === 'gold') {
             const grad = ctx.createLinearGradient(0, 0, 300, 0);
-            grad.addColorStop(0, "gold");
+            grad.addColorStop(0, "#ffd700");
             grad.addColorStop(1, "#b8860b");
             ctx.strokeStyle = grad;
         } else {
@@ -901,49 +889,88 @@ window.graffiti = {
         ctx.moveTo(x, y);
     },
 
-    stop: () => {
-        window.graffiti.isPainting = false;
-        window.graffiti.ctx.beginPath();
-    },
-
     clear: () => {
         window.graffiti.ctx.clearRect(0, 0, 300, 150);
     },
 
     save: async () => {
-        const tagger = currentUser.inventory.find(i => i.emoji === '🔫');
-        if(!tagger || tagger.charges < 1) return alert('Тэгер пуст! Найдите краску 🥛');
+        const taggerIdx = currentUser.inventory.findIndex(i => i.emoji === '🔫');
+        if(taggerIdx === -1 || currentUser.inventory[taggerIdx].charges < 1) return alert('Нет зарядов! Найдите краску 🥛');
 
-        const imgData = window.graffiti.canvas.toDataURL(); // Base64
+        const imgData = window.graffiti.canvas.toDataURL();
         
-        // Save to target profile
+        // Save to Target Profile
         await updateDoc(doc(db, 'users', window.graffiti.targetUser), {
             graffiti: { author: currentUser.username, img: imgData, time: Date.now() }
         });
         
         // Deduct Charge
-        // Find index of tagger to update specific item
-        const tIdx = currentUser.inventory.findIndex(i => i.emoji === '🔫');
-        if(tIdx > -1) {
-            currentUser.inventory[tIdx].charges--;
-            await updateDoc(doc(db, 'users', currentUser.username), { inventory: currentUser.inventory });
-        }
+        currentUser.inventory[taggerIdx].charges--;
+        await updateDoc(doc(db, 'users', currentUser.username), { inventory: currentUser.inventory });
         
-        // Consume Palette if used color (Mythical item logic - debatable if single use, let's say keep palette but cooldown?)
-        // For now, simple logic: Palette is permanent tool to unlock colors.
-        
-        alert('Затэгано! 🔫');
+        alert('Затэгано!');
         window.ui.closeModals();
         window.app.loadProfile(window.graffiti.targetUser);
     }
 };
 
-// --- ADMIN PANEL (FULL RESTORE) ---
+// --- DECOR SHOP (TICKETS) ---
+window.decor = {
+    items: [
+        { id: 'bg_space', type: 'bg', name: 'Космос', price: 1, url: 'https://i.imgur.com/M8P5c8z.jpeg' },
+        { id: 'bg_city', type: 'bg', name: 'Киберпанк', price: 2, url: 'https://i.imgur.com/u7y7qgP.jpeg' },
+        { id: 'fx_snow', type: 'fx', name: 'Снег', price: 1, url: 'https://i.imgur.com/8Q5q5qP.png' }, // Transparent PNG needed
+        { id: 'fx_money', type: 'fx', name: 'Деньги', price: 3, url: 'https://i.imgur.com/abc.png' }
+    ],
+    
+    openShop: () => {
+        document.getElementById('decor-shop-modal').classList.remove('hidden');
+        document.getElementById('shop-tickets-display').innerText = currentUser.tickets || 0;
+        window.decor.tab('bg');
+    },
+
+    tab: (t) => {
+        const c = document.getElementById('decor-shop-list'); c.innerHTML = '';
+        const list = window.decor.items.filter(i => i.type === t);
+        
+        list.forEach(i => {
+            c.innerHTML += `<div class="market-item" onclick="window.decor.buy('${i.id}')">
+                <div style="width:100%; height:50px; background:url('${i.url}') center/cover; border-radius:5px;"></div>
+                <b>${i.name}</b><br>
+                🎫 ${i.price}
+            </div>`;
+        });
+    },
+
+    buy: async (itemId) => {
+        const item = window.decor.items.find(i => i.id === itemId);
+        if((currentUser.tickets || 0) < item.price) return alert('Не хватает билетов!');
+        
+        if(!confirm(`Купить "${item.name}" за ${item.price} 🎫? Это установит фон в текущем чате.`)) return;
+
+        // Pay
+        await updateDoc(doc(db, 'users', currentUser.username), { tickets: increment(-item.price) });
+        currentUser.tickets -= item.price;
+        document.getElementById('shop-tickets-display').innerText = currentUser.tickets;
+
+        // Set Decor in Chat
+        const id = [currentUser.username, curChat].sort().join('_');
+        const upd = {};
+        upd[item.type] = item.url; // bg or fx
+        
+        await setDoc(doc(db, 'chats', id), upd, { merge: true });
+        
+        alert('Установлено!');
+        window.ui.closeModals();
+        window.app.loadChatRoom(curChat);
+    }
+};
+
+// --- ADMIN PANEL ---
 window.admin = {
     tab: (t) => {
         const c = document.getElementById('adm-content'); c.innerHTML='';
         document.querySelectorAll('.view#view-admin .tab').forEach(e=>e.classList.remove('active'));
-        // Active tab logic needed here visually
         
         if(t==='users') {
             c.innerHTML = '<input class="search-bar" oninput="window.admin.search(this.value)" placeholder="Поиск юзера..."> <div id="adm-list"></div>';
@@ -960,65 +987,36 @@ window.admin = {
         s.forEach(d => {
             const u = d.data();
             c.innerHTML += `<div class="card">
-                <b>${u.username}</b> (Баланс: ${u.balance})
+                <b>${u.username}</b> (Bal: ${u.balance})
                 <br>
                 <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:5px;">
-                    <button class="action-btn btn-danger sm-btn" onclick="window.admin.ban('${u.username}')">${u.isBanned?'РАЗБАНИТЬ':'ЗАБАНИТЬ'}</button>
-                    <button class="action-btn btn-sec sm-btn" onclick="window.admin.mute('${u.username}')">${u.isMuted?'Unmute':'Mute'}</button>
+                    <button class="action-btn btn-danger sm-btn" onclick="window.admin.ban('${u.username}')">${u.isBanned?'РАЗБАН':'БАН'}</button>
+                    <button class="action-btn btn-gold sm-btn" onclick="window.admin.toggleAdmin('${u.username}', ${u.isAdmin})">${u.isAdmin?'Снять Адм':'Дать Адм'}</button>
                     <button class="action-btn sm-btn" onclick="window.admin.warn('${u.username}')">WARN</button>
-                    <button class="action-btn btn-gold sm-btn" onclick="window.admin.toggleAdmin('${u.username}', ${u.isAdmin})">${u.isAdmin?'Снять адм':'Дать адм'}</button>
                     <button class="action-btn btn-danger sm-btn" onclick="window.admin.delAcc('${u.username}')">УДАЛИТЬ</button>
                 </div>
             </div>`;
         });
     },
 
-    ban: async (u) => { const curr = (await getDoc(doc(db,'users',u))).data().isBanned; await updateDoc(doc(db,'users',u), {isBanned:!curr}); alert(curr?'Разбанен':'Забанен'); },
-    
-    mute: async (u) => { 
-        const curr = (await getDoc(doc(db,'users',u))).data().isMuted; 
-        await updateDoc(doc(db,'users',u), {isMuted:!curr}); 
-        alert(curr?'Размучен':'Замучен'); 
-    },
-    
-    warn: async (u) => { 
-        const r = prompt('Причина предупреждения?'); 
-        if(r) {
-            await window.app.notify(u, 'warn', 'АДМИН: '+r); 
-            alert('Предупреждение отправлено');
-        }
-    },
-    
-    toggleAdmin: async (u, curr) => { 
-        if(confirm(curr ? 'Снять админку?' : 'Выдать админку?')) {
-            await updateDoc(doc(db,'users',u), {isAdmin:!curr}); 
-            alert('Права обновлены'); 
-        }
-    },
-    
-    delAcc: async (u) => { 
-        if(confirm('УДАЛИТЬ АККАУНТ ПОЛНОСТЬЮ? ЭТО НЕОБРАТИМО.')) { 
-            await deleteDoc(doc(db,'users',u)); 
-            alert('Аккаунт удален'); 
-        } 
-    },
+    ban: async (u) => { const curr = (await getDoc(doc(db,'users',u))).data().isBanned; await updateDoc(doc(db,'users',u), {isBanned:!curr}); alert('Готово'); },
+    warn: async (u) => { const r = prompt('Причина?'); if(r) { window.app.notify(u, 'warn', 'WARN: '+r); alert('Отправлено'); } },
+    toggleAdmin: async (u, curr) => { await updateDoc(doc(db,'users',u), {isAdmin:!curr}); alert('Права изменены'); },
+    delAcc: async (u) => { if(confirm('Удалить навсегда?')) { await deleteDoc(doc(db,'users',u)); alert('Удален'); } },
     
     loadModQueue: async () => {
         const s = await getDocs(query(collection(db,'posts'), where('approved','==',false)));
         const c = document.getElementById('adm-content'); c.innerHTML='';
-        if(s.empty) c.innerHTML='<h3>Нет постов на проверку</h3>';
+        if(s.empty) c.innerHTML='<p>Чисто.</p>';
         
         s.forEach(d => {
             const p = d.data();
-            const actionInfo = p.actionBtn ? `<br><b>Кнопка:</b> [${p.actionBtn.text}] -> ${p.actionBtn.link}` : '';
-            
             c.innerHTML += `<div class="card" style="border:2px solid orange">
                 <b>${p.author}</b><br>${p.content}<br>
-                ${p.image ? `<img src="${p.image}" width="100">` : ''}
-                ${actionInfo}
-                <div style="margin-top:10px; display:flex; gap:10px;">
-                    <button class="action-btn sm-btn" onclick="window.admin.approve('${d.id}')">✅ ОДОБРИТЬ</button>
-                    <button class="action-btn btn-danger sm-btn" onclick="window.admin.reject('${d.id}')">❌ УДАЛИТЬ</button>
+                ${p.image ? '[ФОТО]' : ''} ${p.actionBtn ? '[КНОПКА]' : ''}
+                <div style="margin-top:10px;">
+                    <button class="action-btn sm-btn" onclick="window.admin.approve('${d.id}')">OK</button>
+                    <button class="action-btn btn-danger sm-btn" onclick="window.admin.reject('${d.id}')">NO</button>
                 </div>
             </div>`;
         });
@@ -1030,30 +1028,21 @@ window.admin = {
     loadV: async () => {
         const s = await getDocs(query(collection(db,'system','verifications','requests'), where('status','==','pending')));
         const c = document.getElementById('adm-content'); c.innerHTML='';
-        if(s.empty) c.innerHTML='<h3>Нет заявок</h3>';
+        if(s.empty) c.innerHTML='<p>Нет заявок.</p>';
         
         s.forEach(d => {
             const r = d.data();
             c.innerHTML += `<div class="card">
-                <b>${r.username}</b><br>ФИО: ${r.realname}<br>Инфо: ${r.reason}<br>Links: ${r.links}
-                <div style="margin-top:10px;">
-                    <button class="action-btn sm-btn" onclick="window.admin.okV('${d.id}','${r.username}')">ВЫДАТЬ</button>
-                    <button class="action-btn btn-danger sm-btn" onclick="window.admin.noV('${d.id}')">ОТКАЗАТЬ</button>
-                </div>
+                <b>${r.username}</b>: ${r.realname} (${r.reason})
+                <button class="action-btn sm-btn" onclick="window.admin.okV('${d.id}','${r.username}')">ДА</button>
+                <button class="action-btn btn-danger sm-btn" onclick="window.admin.noV('${d.id}')">НЕТ</button>
             </div>`;
         });
     },
     
-    okV: async (id, u) => { 
-        await updateDoc(doc(db,'users',u), {isVerified:true}); 
-        await updateDoc(doc(db,'system','verifications','requests',id), {status:'ok'}); 
-        window.admin.loadV(); 
-    },
-    
-    noV: async (id) => { 
-        await updateDoc(doc(db,'system','verifications','requests',id), {status:'no'}); 
-        window.admin.loadV(); 
-    }
+    okV: async (id, u) => { await updateDoc(doc(db,'users',u), {isVerified:true}); await updateDoc(doc(db,'system','verifications','requests',id), {status:'ok'}); window.admin.loadV(); },
+    noV: async (id) => { await updateDoc(doc(db,'system','verifications','requests',id), {status:'no'}); window.admin.loadV(); }
 };
 
+// Init App
 window.app.init();
