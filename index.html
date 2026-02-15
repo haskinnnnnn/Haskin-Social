@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Haskin</title>
+    <title>Haskin 6.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -79,30 +79,66 @@
     </div>
 </div>
 
+<div id="graffiti-modal" class="modal-overlay hidden">
+    <div class="modal full-screen-modal" style="background:#222; color:white;">
+        <div class="modal-head">
+            Рисование <span id="paint-charges"></span>
+            <span onclick="window.ui.closeModals()" class="close-btn">×</span>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="graffiti-canvas" width="300" height="150"></canvas>
+        </div>
+        
+        <div id="palette-controls" class="hidden">
+            <div class="color-swatch gold" onclick="window.graffiti.setColor('gold')"></div>
+            <div class="color-swatch red" onclick="window.graffiti.setColor('red')"></div>
+            <div class="color-swatch blue" onclick="window.graffiti.setColor('blue')"></div>
+            <div class="color-swatch black" onclick="window.graffiti.setColor('black')"></div>
+        </div>
+
+        <div class="modal-footer" style="justify-content:space-between">
+            <button class="action-btn btn-sec" onclick="window.graffiti.clear()">Стереть</button>
+            <button class="action-btn" onclick="window.graffiti.save()">ЗА ТЭГАТЬ</button>
+        </div>
+    </div>
+</div>
+
 <div id="create-post-modal" class="modal-overlay hidden">
     <div class="modal">
         <div class="modal-head">Новый пост <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
         <p id="group-post-hint" class="hint-text hidden"></p>
-        <textarea id="post-text" rows="4" placeholder="Что нового?"></textarea>
         
-        <div class="accordion" onclick="document.getElementById('post-extras').classList.toggle('hidden')">➕ Добавить кнопку / Ссылку</div>
+        <div class="tabs mb-10">
+            <button class="tab active" onclick="window.app.setPostType('normal', this)">Обычный</button>
+            <button class="tab" onclick="window.app.setPostType('magazine', this)">Журнал</button>
+        </div>
+
+        <div id="post-type-normal">
+            <textarea id="post-text" rows="4" placeholder="Что нового?"></textarea>
+            <div id="post-img-preview" class="hidden img-preview-box">
+                <img id="preview-img-el">
+                <div onclick="window.app.clearImg()" class="remove-img-btn">×</div>
+            </div>
+            <label class="action-btn btn-sec full-width">📷 Фото<input type="file" hidden accept="image/*" onchange="window.app.handleImg(this)"></label>
+        </div>
+
+        <div id="post-type-magazine" class="hidden">
+            <small>Загрузите 5 фото для сетки 2-1-2</small>
+            <div id="mag-slots" class="mag-grid-preview">
+                </div>
+            <textarea id="mag-text" rows="2" placeholder="Общее описание..."></textarea>
+        </div>
+
+        <div class="accordion" onclick="document.getElementById('post-extras').classList.toggle('hidden')">➕ Кнопка / Ссылка</div>
         <div id="post-extras" class="hidden" style="margin-top:10px;">
-            <input type="text" id="post-btn-text" placeholder="Текст кнопки (напр. Купить)">
+            <input type="text" id="post-btn-text" placeholder="Текст (напр. Купить)">
             <input type="text" id="post-btn-link" placeholder="Ссылка (https://...)">
         </div>
 
-        <div id="post-img-preview" class="hidden img-preview-box">
-            <img id="preview-img-el">
-            <div onclick="window.app.clearImg()" class="remove-img-btn">×</div>
-        </div>
-        <div class="modal-footer">
-            <label class="action-btn btn-sec">📷<input type="file" hidden accept="image/*" onchange="window.app.handleImg(this)"></label>
-            <button class="action-btn" onclick="window.app.createPost()">Опубликовать</button>
-        </div>
-        <small style="color:gray; display:block; margin-top:5px">Посты с фото и ссылками проходят проверку</small>
+        <button class="action-btn full-width mt-10" onclick="window.app.createPost()">Опубликовать</button>
+        <small style="color:gray; display:block; margin-top:5px; font-size:10px;">Сложные посты проходят модерацию</small>
     </div>
 </div>
-
 <div id="case-modal" class="modal-overlay hidden">
     <div class="modal center-content">
         <h3>Открытие...</h3>
@@ -116,12 +152,12 @@
     <div class="modal">
         <div class="modal-head">Предмет <span id="sell-emoji-preview"></span> <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
         <div class="card mb-20">
-            <h4>📌 Закрепить</h4>
+            <h4>📌 Использовать</h4>
             <div style="display:flex; gap:10px;">
                 <button class="action-btn full-width btn-sec" onclick="window.market.pinItem('slot1')">Слот 1 (↗)</button>
                 <button class="action-btn full-width btn-sec" onclick="window.market.pinItem('slot2')">Слот 2 (↙)</button>
             </div>
-            <button class="action-btn full-width btn-danger mt-10" onclick="window.market.unpinItem()">Открепить все</button>
+            <button class="action-btn full-width btn-danger mt-10" onclick="window.market.unpinItem()">Снять все</button>
         </div>
         <div class="card">
             <h4>💰 Продать</h4>
@@ -217,13 +253,28 @@
     </div>
 </div>
 
+<div id="decor-shop-modal" class="modal-overlay hidden">
+    <div class="modal full-height-modal">
+        <div class="modal-head">Декор Чатов 🎫 <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
+        <div class="tabs">
+            <button class="tab active" onclick="window.decor.tab('bg')">Фоны</button>
+            <button class="tab" onclick="window.decor.tab('fx')">Эффекты</button>
+        </div>
+        <div id="decor-shop-list" class="scroll-list grid-list"></div>
+        <div class="modal-footer">
+            <small>Валюта: Билеты</small>
+            <span id="ticket-balance" style="font-weight:bold; color:gold;">0</span>
+        </div>
+    </div>
+</div>
+
 <div id="app-screen" class="hidden">
     <div class="fab" onclick="window.app.openCreatePost()">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </div>
 
     <div class="sidebar">
-        <h2 class="desk-label logo-text-small">Haskin</h2>
+        <h2 class="desk-label logo-text-small">Haskin 6.0</h2>
         <div class="nav-item active" onclick="window.ui.nav('feed')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span class="desk-label">Лента</span>
@@ -239,11 +290,6 @@
         <div class="nav-item" onclick="window.ui.nav('chats')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span class="desk-label">Чаты</span>
-        </div>
-        <div class="nav-item" onclick="window.ui.nav('notifs')">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span class="desk-label">Инфо</span>
-            <div class="badge" id="notif-badge"></div>
         </div>
         <div class="nav-item" onclick="window.ui.nav('rich')">
             <svg class="icon" viewBox="0 0 24 24" style="stroke:gold"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
@@ -294,7 +340,7 @@
             <div id="set-acc" class="set-page">
                 <div class="card">
                     <h3>Данные</h3>
-                    <p>Баланс: <b id="settings-bal" style="color:var(--gold-color)">0</b> HC</p>
+                    <p>Баланс: <b id="settings-bal" style="color:var(--gold-color)">0</b> HC | 🎫 <b id="settings-tickets">0</b></p>
                     <input id="edit-name" placeholder="Имя">
                     <textarea id="edit-bio" placeholder="О себе"></textarea>
                     <label class="action-btn btn-sec mt-10">Аватар<input type="file" hidden accept="image/*" onchange="window.app.handleAvatar(this)"></label>
@@ -327,6 +373,7 @@
                 </div>
             </div>
         </div>
+        
         <div id="view-admin" class="view">
             <h2 style="color:red">Админка 2.0</h2>
             <div class="tabs">
@@ -341,14 +388,20 @@
 </div>
 
 <div id="view-chat-room" class="full-screen-view hidden">
-    <div class="chat-header" onclick="window.app.navToChatProfile()">
+    <div class="chat-header">
         <button onclick="window.ui.nav('chats')" class="back-btn">←</button>
-        <div class="chat-info">
+        <div class="chat-info" onclick="window.app.navToChatProfile()">
             <b id="chat-title">User</b>
             <span class="sub-text">Нажмите для профиля</span>
         </div>
+        <button class="action-btn sm-btn btn-gold" onclick="window.decor.openShop()">🎨</button>
     </div>
+    
+    <div id="chat-bg-layer" class="chat-bg-layer"></div>
+    <div id="chat-fx-layer" class="chat-fx-layer"></div>
+
     <div id="msg-container" class="msg-area"></div>
+    
     <div class="chat-input-bar">
         <button id="game-btn" class="mic-btn" onclick="window.game.openCreate()">🎲</button>
         <label class="attach-btn">📎<input type="file" hidden accept="image/*" onchange="window.app.handleChatImg(this)"></label>
@@ -359,5 +412,4 @@
 
 <script type="module" src="app.js"></script>
 </body>
-    </html>
-    
+</html>
