@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Haskin 6.0</title>
+    <title>Haskin 6.1</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -43,6 +43,70 @@
     </div>
 </div>
 
+<div id="avatar-menu-modal" class="modal-overlay hidden">
+    <div class="modal center-content">
+        <div class="modal-head">Украшения <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
+        <div class="slots-container">
+            <div class="slot-box" onclick="window.app.manageSlot('slot1')">
+                <small>Слот 1 (↗)</small>
+                <div id="slot1-view" class="slot-icon">➕</div>
+            </div>
+            <div class="slot-box" onclick="window.app.manageSlot('slot2')">
+                <small>Слот 2 (↙)</small>
+                <div id="slot2-view" class="slot-icon">➕</div>
+            </div>
+        </div>
+        <p style="font-size:12px; color:gray; margin-top:10px;">Нажмите на слот, чтобы выбрать или снять эмодзи.</p>
+    </div>
+</div>
+
+<div id="item-select-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-head">Выберите эмодзи <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
+        <div id="item-select-list" class="market-grid"></div>
+        <button class="action-btn full-width btn-danger mt-10" id="unequip-btn">Снять текущее</button>
+    </div>
+</div>
+
+<div id="case-opening-modal" class="modal-overlay hidden" style="z-index: 6000;">
+    <div class="modal center-content transparent-modal">
+        <div id="case-anim-icon" class="case-shaker">📦</div>
+        <h2 id="case-anim-text" style="color:white; text-shadow:0 2px 5px black;">Открываем...</h2>
+    </div>
+</div>
+
+<div id="drop-result-modal" class="modal-overlay hidden" style="z-index: 6001;">
+    <div class="modal center-content">
+        <h2>Вам выпало!</h2>
+        <div id="drop-icon" style="font-size: 80px; margin: 20px 0;"></div>
+        <h3 id="drop-name"></h3>
+        <p id="drop-rarity" style="font-weight:bold;"></p>
+        <button class="action-btn full-width" onclick="window.ui.closeModals()">Круто</button>
+    </div>
+</div>
+
+<div id="graffiti-modal" class="modal-overlay hidden">
+    <div class="modal full-screen-modal" style="background:#222; color:white;">
+        <div class="modal-head">
+            Рисование <span id="paint-charges"></span>
+            <span onclick="window.ui.closeModals()" class="close-btn">×</span>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="graffiti-canvas" width="300" height="150"></canvas>
+        </div>
+        <div id="palette-controls" class="hidden">
+            <div class="color-swatch gold" onclick="window.graffiti.setColor('gold')"></div>
+            <div class="color-swatch red" onclick="window.graffiti.setColor('red')"></div>
+            <div class="color-swatch blue" onclick="window.graffiti.setColor('blue')"></div>
+            <div class="color-swatch black" onclick="window.graffiti.setColor('black')"></div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between">
+            <button class="action-btn btn-sec" onclick="window.graffiti.clear()">Стереть</button>
+            <button class="action-btn" onclick="window.graffiti.save()">ЗА ТЭГАТЬ</button>
+        </div>
+    </div>
+</div>
+
 <div id="game-ui" class="hidden">
     <div class="game-top-area">
         <div class="game-timer-wrap">
@@ -79,40 +143,13 @@
     </div>
 </div>
 
-<div id="graffiti-modal" class="modal-overlay hidden">
-    <div class="modal full-screen-modal" style="background:#222; color:white;">
-        <div class="modal-head">
-            Рисование <span id="paint-charges"></span>
-            <span onclick="window.ui.closeModals()" class="close-btn">×</span>
-        </div>
-        <div class="canvas-wrapper">
-            <canvas id="graffiti-canvas" width="300" height="150"></canvas>
-        </div>
-        
-        <div id="palette-controls" class="hidden">
-            <div class="color-swatch gold" onclick="window.graffiti.setColor('gold')"></div>
-            <div class="color-swatch red" onclick="window.graffiti.setColor('red')"></div>
-            <div class="color-swatch blue" onclick="window.graffiti.setColor('blue')"></div>
-            <div class="color-swatch black" onclick="window.graffiti.setColor('black')"></div>
-        </div>
-
-        <div class="modal-footer" style="justify-content:space-between">
-            <button class="action-btn btn-sec" onclick="window.graffiti.clear()">Стереть</button>
-            <button class="action-btn" onclick="window.graffiti.save()">ЗА ТЭГАТЬ</button>
-        </div>
-    </div>
-</div>
-
 <div id="create-post-modal" class="modal-overlay hidden">
     <div class="modal">
         <div class="modal-head">Новый пост <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
-        <p id="group-post-hint" class="hint-text hidden"></p>
-        
         <div class="tabs mb-10">
             <button class="tab active" onclick="window.app.setPostType('normal', this)">Обычный</button>
             <button class="tab" onclick="window.app.setPostType('magazine', this)">Журнал</button>
         </div>
-
         <div id="post-type-normal">
             <textarea id="post-text" rows="4" placeholder="Что нового?"></textarea>
             <div id="post-img-preview" class="hidden img-preview-box">
@@ -121,50 +158,28 @@
             </div>
             <label class="action-btn btn-sec full-width">📷 Фото<input type="file" hidden accept="image/*" onchange="window.app.handleImg(this)"></label>
         </div>
-
         <div id="post-type-magazine" class="hidden">
-            <small>Загрузите 5 фото для сетки 2-1-2</small>
-            <div id="mag-slots" class="mag-grid-preview">
-                </div>
-            <textarea id="mag-text" rows="2" placeholder="Общее описание..."></textarea>
-        </div>
-
+            <small>Режим журнала (Сетка 2-1-2)</small>
+            <textarea id="mag-text" rows="2" placeholder="Текст поста..."></textarea>
+            </div>
         <div class="accordion" onclick="document.getElementById('post-extras').classList.toggle('hidden')">➕ Кнопка / Ссылка</div>
         <div id="post-extras" class="hidden" style="margin-top:10px;">
             <input type="text" id="post-btn-text" placeholder="Текст (напр. Купить)">
             <input type="text" id="post-btn-link" placeholder="Ссылка (https://...)">
         </div>
-
         <button class="action-btn full-width mt-10" onclick="window.app.createPost()">Опубликовать</button>
-        <small style="color:gray; display:block; margin-top:5px; font-size:10px;">Сложные посты проходят модерацию</small>
     </div>
 </div>
-<div id="case-modal" class="modal-overlay hidden">
-    <div class="modal center-content">
-        <h3>Открытие...</h3>
-        <div id="case-spinner" class="case-anim">📦</div>
-        <div id="case-result" class="hidden"></div>
-        <button class="action-btn hidden" id="case-close-btn" onclick="window.ui.closeModals()">Забрать</button>
-    </div>
-</div>
-
 <div id="sell-modal" class="modal-overlay hidden">
     <div class="modal">
-        <div class="modal-head">Предмет <span id="sell-emoji-preview"></span> <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
-        <div class="card mb-20">
-            <h4>📌 Использовать</h4>
-            <div style="display:flex; gap:10px;">
-                <button class="action-btn full-width btn-sec" onclick="window.market.pinItem('slot1')">Слот 1 (↗)</button>
-                <button class="action-btn full-width btn-sec" onclick="window.market.pinItem('slot2')">Слот 2 (↙)</button>
-            </div>
-            <button class="action-btn full-width btn-danger mt-10" onclick="window.market.unpinItem()">Снять все</button>
-        </div>
+        <div class="modal-head">Продажа <span id="sell-emoji-preview"></span> <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
         <div class="card">
-            <h4>💰 Продать</h4>
+            <p>Выставляем предмет на Биржу.</p>
             <input type="number" id="sell-price" placeholder="Цена (HC)">
             <input type="hidden" id="sell-item-id">
             <input type="hidden" id="sell-item-emoji">
             <input type="hidden" id="sell-item-rarity">
+            <input type="hidden" id="sell-item-charges"> 
             <button class="action-btn full-width" onclick="window.market.confirmSell()">Выставить</button>
         </div>
     </div>
@@ -174,7 +189,7 @@
     <div class="modal center-content">
         <div class="modal-head">Лот <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
         <div id="buy-emoji-display" style="font-size: 80px; margin: 10px 0;"></div>
-        <h2 id="buy-price-display" style="color:var(--gold-color)"></h2>
+        <h2 id="buy-price-display" style="color:gold; text-shadow: 1px 1px 0 #000;"></h2>
         <div class="user-row center-content" style="justify-content:center; margin:10px 0;">
             Продавец: <b id="buy-seller-display"></b>
         </div>
@@ -184,6 +199,7 @@
         <input type="hidden" id="buy-item-emoji">
         <input type="hidden" id="buy-item-rarity">
         <input type="hidden" id="buy-item-realid">
+        <input type="hidden" id="buy-item-charges">
         <button class="action-btn full-width" id="buy-btn-action">КУПИТЬ</button>
     </div>
 </div>
@@ -255,16 +271,12 @@
 
 <div id="decor-shop-modal" class="modal-overlay hidden">
     <div class="modal full-height-modal">
-        <div class="modal-head">Декор Чатов 🎫 <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
+        <div class="modal-head">Декор 🎫 <span id="shop-tickets-display">0</span> <span onclick="window.ui.closeModals()" class="close-btn">×</span></div>
         <div class="tabs">
             <button class="tab active" onclick="window.decor.tab('bg')">Фоны</button>
             <button class="tab" onclick="window.decor.tab('fx')">Эффекты</button>
         </div>
         <div id="decor-shop-list" class="scroll-list grid-list"></div>
-        <div class="modal-footer">
-            <small>Валюта: Билеты</small>
-            <span id="ticket-balance" style="font-weight:bold; color:gold;">0</span>
-        </div>
     </div>
 </div>
 
@@ -274,19 +286,23 @@
     </div>
 
     <div class="sidebar">
-        <h2 class="desk-label logo-text-small">Haskin 6.0</h2>
+        <h2 class="desk-label logo-text-small">Haskin</h2>
+        
         <div class="nav-item active" onclick="window.ui.nav('feed')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span class="desk-label">Лента</span>
         </div>
+        
         <div class="nav-item" onclick="window.ui.nav('market')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             <span class="desk-label">Рынок</span>
         </div>
+        
         <div class="nav-item" onclick="window.ui.nav('groups')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="desk-label">Группы</span>
         </div>
+
         <div class="nav-item" onclick="window.ui.nav('chats')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span class="desk-label">Чаты</span>
@@ -295,18 +311,22 @@
             <svg class="icon" viewBox="0 0 24 24" style="stroke:gold"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
             <span class="desk-label" style="color:gold">Топ</span>
         </div>
+
         <div class="nav-item" onclick="window.ui.nav('profile')">
             <svg class="icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="desk-label">Профиль</span>
         </div>
+
         <div class="nav-item hidden" id="nav-admin" onclick="window.ui.nav('admin')">
             <svg class="icon" viewBox="0 0 24 24" style="stroke:red"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <span class="desk-label">Админ</span>
         </div>
+
         <div class="nav-item" onclick="window.ui.nav('search')">
             <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span class="desk-label">Поиск</span>
         </div>
+
         <div class="nav-item" onclick="window.ui.nav('settings')">
             <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span class="desk-label">Меню</span>
@@ -314,7 +334,11 @@
     </div>
 
     <div class="main">
-        <div id="view-feed" class="view active"><h2 class="view-title">Лента</h2><div id="feed-content"></div></div>
+        <div id="view-feed" class="view active">
+            <h2 class="view-title">Лента</h2>
+            <div id="feed-content"></div>
+        </div>
+
         <div id="view-market" class="view">
             <h2 class="view-title" style="color:var(--gold-color)">Рынок</h2>
             <div class="tabs">
@@ -324,11 +348,27 @@
             </div>
             <div id="market-content" class="market-grid"></div>
         </div>
-        <div id="view-groups" class="view"><h2>Группы</h2><button class="action-btn" onclick="document.getElementById('create-group-modal').classList.remove('hidden')">Создать</button><div id="groups-list"></div></div>
+
+        <div id="view-groups" class="view">
+            <h2>Группы</h2>
+            <button class="action-btn" onclick="document.getElementById('create-group-modal').classList.remove('hidden')">Создать</button>
+            <div id="groups-list"></div>
+        </div>
+
         <div id="view-chats" class="view"><h2>Чаты</h2><div id="chats-list"></div></div>
         <div id="view-rich" class="view"><h2>Топ Богачей</h2><div id="rich-list"></div></div>
-        <div id="view-profile" class="view"><div id="profile-head"></div><div id="profile-posts"></div></div>
-        <div id="view-search" class="view"><h2>Поиск</h2><input class="search-bar" placeholder="Поиск людей..." oninput="window.app.search(this.value)"><div id="search-res"></div></div>
+        
+        <div id="view-profile" class="view">
+            <div id="profile-head"></div>
+            <div id="profile-posts"></div>
+        </div>
+        
+        <div id="view-search" class="view">
+            <h2>Поиск</h2>
+            <input class="search-bar" placeholder="Поиск людей..." oninput="window.app.search(this.value)">
+            <div id="search-res"></div>
+        </div>
+
         <div id="view-settings" class="view">
             <h2>Настройки</h2>
             <button id="settings-admin-btn" class="action-btn hidden danger-bg full-width mb-20" onclick="window.ui.nav('admin')">🛡️ Админка</button>
@@ -337,13 +377,14 @@
                 <button class="tab" onclick="window.ui.setTab('ui', this)">Интерфейс</button>
                 <button class="tab" onclick="window.ui.setTab('priv', this)">Приватность</button>
             </div>
+
             <div id="set-acc" class="set-page">
                 <div class="card">
                     <h3>Данные</h3>
-                    <p>Баланс: <b id="settings-bal" style="color:var(--gold-color)">0</b> HC | 🎫 <b id="settings-tickets">0</b></p>
+                    <p>Баланс: <b id="settings-bal" style="color:var(--gold-color)">0</b> HC | 🎫 <b id="settings-tickets" style="color:orange">0</b></p>
                     <input id="edit-name" placeholder="Имя">
                     <textarea id="edit-bio" placeholder="О себе"></textarea>
-                    <label class="action-btn btn-sec mt-10">Аватар<input type="file" hidden accept="image/*" onchange="window.app.handleAvatar(this)"></label>
+                    <label class="action-btn btn-sec mt-10">Сменить Аватар<input type="file" hidden accept="image/*" onchange="window.app.handleAvatar(this)"></label>
                     <button class="action-btn full-width mt-10" onclick="window.app.saveProfile()">Сохранить</button>
                 </div>
                 <div class="card">
@@ -352,6 +393,7 @@
                 </div>
                 <button class="action-btn btn-danger full-width" onclick="window.app.logout()">Выйти</button>
             </div>
+
             <div id="set-ui" class="set-page hidden">
                 <div class="card">
                     <label class="user-row">
@@ -359,6 +401,7 @@
                     </label>
                 </div>
             </div>
+
             <div id="set-priv" class="set-page hidden">
                 <div class="card">
                     <h3>Приватность</h3>
@@ -373,15 +416,14 @@
                 </div>
             </div>
         </div>
-        
+
         <div id="view-admin" class="view">
-            <h2 style="color:red">Админка 2.0</h2>
+            <h2 style="color:red">Админка</h2>
             <div class="tabs">
                 <button class="tab active" onclick="window.admin.tab('users')">Юзеры</button>
                 <button class="tab" onclick="window.admin.tab('mod')">Модерация</button>
                 <button class="tab" onclick="window.admin.tab('verify')">Галочки</button>
             </div>
-            <div id="adm-stats" class="info-box">Загрузка...</div>
             <div id="adm-content"></div>
         </div>
     </div>
@@ -392,9 +434,9 @@
         <button onclick="window.ui.nav('chats')" class="back-btn">←</button>
         <div class="chat-info" onclick="window.app.navToChatProfile()">
             <b id="chat-title">User</b>
-            <span class="sub-text">Нажмите для профиля</span>
+            <span class="sub-text">профиль</span>
         </div>
-        <button class="action-btn sm-btn btn-gold" onclick="window.decor.openShop()">🎨</button>
+        <button class="action-btn sm-btn btn-gold" onclick="window.decor.openShop()">🎫 Декор</button>
     </div>
     
     <div id="chat-bg-layer" class="chat-bg-layer"></div>
